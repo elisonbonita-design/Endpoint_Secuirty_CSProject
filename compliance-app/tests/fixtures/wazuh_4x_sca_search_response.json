@@ -1,0 +1,66 @@
+{
+  "took": 5,
+  "timed_out": false,
+  "hits": {
+    "total": {"value": 3, "relation": "eq"},
+    "hits": [
+      {
+        "_index": "wazuh-alerts-4.x-2026.01.01",
+        "_source": {
+          "timestamp": "2026-01-01T10:00:03.000+0000",
+          "agent": {"id": "001", "name": "test-agent"},
+          "data": {"sca": {
+            "scan_id": "1000",
+            "policy": "Sample Windows Benchmark v1.0.0",
+            "check": {
+              "id": "9001",
+              "title": "Ensure remote assistance is disabled.",
+              "result": "failed",
+              "remediation": "Disable remote assistance.",
+              "rationale": "Reduces remote access exposure.",
+              "description": "Sample description.",
+              "compliance": {"pci_dss_v4": {"0": "1.2.5,2.2.4"}, "pci_dss_v3": {"2": {"1": "2.2.2"}}, "cis": "18.9.35.2", "soc_2": "CC6.3, CC6.6"}
+            }
+          }}
+        }
+      },
+      {
+        "_index": "wazuh-alerts-4.x-2026.01.01",
+        "_source": {
+          "timestamp": "2026-01-01T10:00:02.000+0000",
+          "agent": {"id": "001", "name": "test-agent"},
+          "data": {"sca": {
+            "scan_id": "1000",
+            "policy": "Sample Windows Benchmark v1.0.0",
+            "check": {
+              "id": "9002",
+              "title": "Ensure password history is 24 or more.",
+              "result": "passed",
+              "remediation": "Set password history to 24.",
+              "compliance": {"cis": "1.1.1", "pci_dss_v4": {"0": "8.3.7"}, "nist_sp_800-53": 7}
+            }
+          }}
+        }
+      },
+      {
+        "_index": "wazuh-alerts-4.x-2026.01.01",
+        "_source": {
+          "timestamp": "2026-01-01T10:00:01.000+0000",
+          "agent": {"id": "001", "name": "test-agent"},
+          "data": {"sca": {
+            "scan_id": "1000",
+            "policy": "Sample Windows Benchmark v1.0.0",
+            "check": {
+              "id": "9003",
+              "title": "Ensure legacy browser service is disabled.",
+              "result": "not applicable",
+              "reason": "Unable to read registry key (not found).",
+              "remediation": "Disable the service.",
+              "compliance": {"cis": "5.3", "empty_fw": ""}
+            }
+          }}
+        }
+      }
+    ]
+  }
+}

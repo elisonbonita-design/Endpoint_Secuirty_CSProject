@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compliance Monitor</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='fleet.js') }}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <h1>Configuration Compliance</h1>
+        <p class="subtitle">Endpoint compliance management · Wazuh SCA</p>
+      </div>
+    </div>
+    <div class="actions source-picker">
+      <label for="fleet-source">Data source</label>
+      <select id="fleet-source">
+        <option value="sample">Sample fleet</option>
+        <option value="wazuh">Live Wazuh</option>
+      </select>
+      <button type="button" id="fleet-refresh" class="btn btn-primary" title="Read the latest results from every source and re-check all findings">Scan now</button>
+    </div>
+    <div class="actions user-bar">
+      <span id="user-name" class="muted"></span>
+      <button type="button" id="logout-btn" class="btn btn-secondary btn-small" hidden>Sign out</button>
+    </div>
+  </header>
+  <nav class="main-nav" aria-label="Dashboard sections">
+    <a href="#/overview" data-nav="overview">Overview</a>
+    <a href="#/map" data-nav="map">Endpoint map</a>
+    <a href="#/floorplan" data-nav="floorplan">Floor plan</a>
+    <a href="#/findings" data-nav="findings">Findings</a>
+    <a href="#/assets" data-nav="assets">Assets</a>
+    <a href="#/report" data-nav="report">Single report</a>
+    <a href="#/admin" data-nav="admin" id="nav-admin" hidden>Admin</a>
+    <a href="/report" id="report-link" target="_blank" rel="noopener">Compliance report ↗</a>
+  </nav>
+
+  <main class="container">
+    <div id="fleet-views">
+      <div id="source-banner" class="source-banner" hidden></div>
+      <div id="fleet-status" class="status" role="status" aria-live="polite"></div>
+      <div id="scan-result" class="status scan-result" role="status" aria-live="polite"></div>
+      <div id="fleet-error" class="alert" role="alert" hidden></div>
+      <ul id="fleet-warnings" class="warnings" hidden></ul>
+
+      <section id="view-overview" class="view" hidden>
+        <h2 class="view-title">Open findings <span class="muted">(selected requirements, by risk band)</span></h2>
+        <div class="kpis kpis-compact band-kpis">
+          <article class="card kpi band-kpi band-edge-critical"><h3>Critical</h3><p class="kpi-value" id="band-count-critical">–</p></article>
+          <article class="card kpi band-kpi band-edge-high"><h3>High</h3><p class="kpi-value" id="band-count-high">–</p></article>
+          <article class="card kpi band-kpi band-edge-medium"><h3>Medium</h3><p class="kpi-value" id="band-count-medium">–</p></article>
+          <article class="card kpi band-kpi band-edge-low"><h3>Low</h3><p class="kpi-value" id="band-count-low">–</p></article>
+          <article class="card kpi band-kpi"><h3>Needs data</h3><p class="kpi-value tone-unknown" id="band-count-needs">–</p></article>
+        </div>
+
+        <section class="card fix-first" aria-labelledby="fix-first-title">
+          <div class="section-head">
+            <h2 id="fix-first-title">Fix first <span class="muted">(top 10 by risk score)</span></h2>
+            <div class="fix-first-meta">
+              <a href="#/findings" class="needs-data-link" id="needs-data-link">Needs data: <strong id="needs-data-count">–</strong></a>
+              <button type="button" class="btn btn-secondary btn-small" id="daily-summary-btn">Daily summary</button>
+            </div>
+          </div>
+          <p class="muted risk-basis" id="risk-basis"></p>
+          <div id="daily-summary" class="daily-summary" aria-live="polite" hidden></div>
+          <p class="empty" id="fix-first-empty" hidden>No open noncompliant findings to prioritize.</p>
+          <ol class="fix-list" id="fix-first-list"></ol>
+        </section>
+
+        <h2 class="view-title">Endpoints <span class="muted">(one status per PC, from all Wazuh checks)</span></h2>
+        <div class="kpis kpis-compact">
+          <article class="card kpi"><h3>Total PCs</h3><p class="kpi-value" id="pc-total">–</p></article>
+          <article class="card kpi"><h3>Compliant PCs</h3><p class="kpi-value tone-pass" id="pc-compliant">–</p></article>
+          <article class="card kpi"><h3>Noncompliant PCs</h3><p class="kpi-value tone-fail" id="pc-noncompliant">–</p></article>
+          <article class="card kpi"><h3>Unknown status</h3><p class="kpi-value tone-unknown" id="pc-unknown">–</p></article>
+          <article class="card kpi"><h3>Offline / stale</h3><p class="kpi-value tone-warn" id="pc-offline">–</p></article>
+          <article class="card kpi"><h3>Unassigned</h3><p class="kpi-value tone-unknown" id="pc-unassigned">–</p></article>
+        </div>
+        <p class="kpi-note">A PC is <strong>Noncompliant</strong> if any check failed, <strong>Compliant</strong> only if
+          checks passed and none failed or are unknown, otherwise <strong>Unknown</strong>. Offline/stale comes from
+          the Wazuh agent status (stale: active but no keep-alive for over 1 hour) and is independent of compliance.</p>
+
+        <h2 class="view-title">Raw Wazuh SCA results <span class="muted">(every check Wazuh ran on every PC, including
+          checks outside the requirement catalogue)</span></h2>
+        <div class="kpis kpis-compact">
+          <article class="card kpi kpi-main"><h3>Overall compliance rate</h3><p class="kpi-value" id="chk-rate">–</p>
+            <div class="meter" aria-hidden="true"><div class="meter-fill" id="chk-meter"></div></div>
+            <p class="kpi-note">Passed ÷ (passed + failed). Not applicable and unknown excluded.</p></article>
+          <article class="card kpi"><h3>Total checks</h3><p class="kpi-value" id="chk-total">–</p></article>
+          <article class="card kpi"><h3>Passed</h3><p class="kpi-value tone-pass" id="chk-passed">–</p></article>
+          <article class="card kpi"><h3>Failed</h3><p class="kpi-value tone-fail" id="chk-failed">–</p></article>
+          <article class="card kpi"><h3>Unknown</h3><p class="kpi-value tone-unknown" id="chk-unknown">–</p></article>
+          <article class="card kpi"><h3>Not applicable</h3><p class="kpi-value tone-na" id="chk-na">–</p></article>
+        </div>
+
+        <section class="card">
+          <div class="section-head"><h2>By department</h2></div>
+          <div class="table-wrap">
+            <table class="data-table" id="dept-table">
+              <thead><tr><th>Department</th><th class="num">PCs</th><th class="num">Compliant</th><th class="num">Noncompliant</th><th class="num">Unknown</th><th>Check pass rate</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-map" class="view" hidden>
+        <div class="card map-toolbar">
+          <div class="filters">
+            <label class="visually-hidden" for="map-search">Search PCs</label>
+            <input type="search" id="map-search" placeholder="Search hostname or agent ID…">
+            <label class="visually-hidden" for="map-department">Department</label>
+            <select id="map-department"><option value="">All departments</option></select>
+            <label class="visually-hidden" for="map-status">PC status</label>
+            <select id="map-status">
+              <option value="">All statuses</option>
+              <option value="compliant">Compliant</option>
+              <option value="noncompliant">Noncompliant</option>
+              <option value="unknown">Unknown</option>
+              <option value="offline_or_stale">Offline / stale</option>
+            </select>
+          </div>
+          <ul class="legend" aria-label="Legend">
+            <li><span class="swatch status-compliant"></span>Compliant</li>
+            <li><span class="swatch status-noncompliant"></span>Noncompliant</li>
+            <li><span class="swatch status-unknown"></span>Unknown</li>
+          </ul>
+        </div>
+        <p class="empty" id="map-empty" hidden>No PCs match these filters.</p>
+        <div id="map-groups"></div>
+      </section>
+
+      <section id="view-floorplan" class="view" hidden>
+        <div class="card map-toolbar">
+          <div class="filters">
+            <label class="visually-hidden" for="fp-floor">Building and floor</label>
+            <select id="fp-floor"></select>
+            <label class="visually-hidden" for="fp-department">Department</label>
+            <select id="fp-department"><option value="">All departments</option></select>
+            <label class="visually-hidden" for="fp-status">PC status</label>
+            <select id="fp-status">
+              <option value="">All statuses</option>
+              <option value="compliant">Compliant</option>
+              <option value="noncompliant">Noncompliant</option>
+              <option value="unknown">Unknown</option>
+              <option value="offline_or_stale">Offline / stale</option>
+            </select>
+            <label class="check-label"><input type="checkbox" id="fp-urgent"> Only Critical / High</label>
+          </div>
+          <ul class="legend" aria-label="Seat colour legend: highest risk band of open findings">
+            <li><span class="fp-dot band-critical" aria-hidden="true">C</span>Critical</li>
+            <li><span class="fp-dot band-high" aria-hidden="true">H</span>High</li>
+            <li><span class="fp-dot band-medium" aria-hidden="true">M</span>Medium</li>
+            <li><span class="fp-dot band-low" aria-hidden="true">L</span>Low</li>
+            <li><span class="fp-dot band-clear" aria-hidden="true">✓</span>No open findings</li>
+            <li><span class="fp-dot band-unknown" aria-hidden="true">?</span>Unknown results only</li>
+            <li><span class="fp-dot band-unknown conn-offline" aria-hidden="true"></span>Offline / stale (dashed)</li>
+          </ul>
+        </div>
+        <p class="muted" id="fp-note"></p>
+        <div class="fp-layout">
+          <div class="card fp-stage-card">
+            <p class="empty" id="fp-no-floors" hidden>No PC has a building and floor assigned yet. Assign them on the
+              <a href="#/assets">Assets</a> tab, then upload a floor plan.</p>
+            <p class="empty" id="fp-no-plan" hidden>No floor plan uploaded for this building and floor yet.</p>
+            <div id="fp-stage" class="fp-stage" hidden>
+              <img id="fp-image" alt="Floor plan" draggable="false">
+              <div id="fp-markers"></div>
+            </div>
+            <p class="muted fp-help" id="fp-help" hidden>Drag a marker to move it, or drag a PC from "Not placed" onto the
+              plan. Positions are saved automatically. Select a marker to see its details; arrow keys nudge it.</p>
+          </div>
+          <aside class="fp-side">
+            <section class="card">
+              <div class="section-head"><h2>Not placed</h2><span class="muted" id="fp-tray-count"></span></div>
+              <p class="empty" id="fp-tray-empty">Every PC on this floor that matches the filters is placed.</p>
+              <ul class="fp-tray" id="fp-tray"></ul>
+            </section>
+            <section class="card" id="fp-detail" aria-live="polite" hidden></section>
+            <section class="card">
+              <div class="section-head"><h2>Upload floor plan</h2></div>
+              <form id="fp-upload-form" class="asset-form fp-upload">
+                <label>Building<input id="fp-up-building" required maxlength="100" autocomplete="off"></label>
+                <label>Floor<input id="fp-up-floor" required maxlength="100" autocomplete="off"></label>
+                <label>Image (PNG, JPEG or WebP, max 2 MB)
+                  <input type="file" id="fp-up-file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required></label>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary">Upload</button>
+                  <button type="button" id="fp-delete-plan" class="btn btn-secondary" hidden>Delete this plan</button>
+                </div>
+              </form>
+              <p id="fp-message" class="status" role="status" aria-live="polite"></p>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-pc" class="view" hidden>
+        <p><a href="#/map" class="back-link">← Endpoint map</a></p>
+        <div class="card">
+          <div class="section-head">
+            <h2 id="pc-title"></h2>
+            <div id="pc-badges" class="badges"></div>
+          </div>
+          <dl class="facts" id="pc-facts"></dl>
+        </div>
+
+        <h2 class="view-title">Selected requirements <span class="muted" id="pc-req-version"></span></h2>
+        <p class="muted pc-measure-note">The documented baseline this system checks: each requirement is decided from
+          Wazuh SCA, Windows events, file integrity, inventory and the BitLocker collector. Missing data is never
+          counted as compliant.</p>
+        <div class="kpis kpis-compact req-kpis">
+          <article class="card kpi kpi-main"><h3>Requirement compliance</h3><p class="kpi-value" id="pc-req-rate">–</p>
+            <div class="meter" aria-hidden="true"><div class="meter-fill" id="pc-req-meter"></div></div>
+            <p class="kpi-note">Compliant ÷ (compliant + non-compliant).</p></article>
+          <article class="card kpi"><h3>Compliant</h3><p class="kpi-value tone-pass" id="pc-req-compliant">–</p></article>
+          <article class="card kpi"><h3>Non-compliant</h3><p class="kpi-value tone-fail" id="pc-req-noncompliant">–</p></article>
+          <article class="card kpi"><h3>Exception</h3><p class="kpi-value tone-na" id="pc-req-exception">–</p></article>
+          <article class="card kpi"><h3>Unknown / n/a</h3><p class="kpi-value tone-unknown" id="pc-req-unknown">–</p></article>
+          <article class="card kpi"><h3>No data</h3><p class="kpi-value tone-unknown" id="pc-req-nodata">–</p></article>
+        </div>
+        <section class="card">
+          <div class="section-head">
+            <h2>Requirements on this PC</h2>
+            <div class="filters">
+              <label class="visually-hidden" for="pc-req-filter">Filter by requirement status</label>
+              <select id="pc-req-filter">
+                <option value="">All requirements</option>
+                <option value="non_compliant">Non-compliant</option>
+                <option value="compliant">Compliant</option>
+                <option value="exception">Approved exception</option>
+                <option value="unknown">Unknown</option>
+                <option value="not_applicable">Not applicable</option>
+                <option value="no_data">No data</option>
+              </select>
+            </div>
+          </div>
+          <p class="empty" id="pc-req-empty" hidden>No requirements match.</p>
+          <div class="table-wrap">
+            <table class="data-table findings" id="pc-req-table">
+              <thead><tr><th>Requirement</th><th>Severity</th><th>Status</th><th>Evidence</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <h2 class="view-title">CIS benchmark (Wazuh SCA) <span class="muted">— raw results of every benchmark check,
+          including checks outside the requirement catalogue</span></h2>
+        <div class="kpis kpis-compact">
+          <article class="card kpi"><h3>Benchmark pass rate</h3><p class="kpi-value" id="pc-rate">–</p></article>
+          <article class="card kpi"><h3>Passed</h3><p class="kpi-value tone-pass" id="pc-passed">–</p></article>
+          <article class="card kpi"><h3>Failed</h3><p class="kpi-value tone-fail" id="pc-failed">–</p></article>
+          <article class="card kpi"><h3>Unknown</h3><p class="kpi-value tone-unknown" id="pc-unknown-checks">–</p></article>
+          <article class="card kpi"><h3>Not applicable</h3><p class="kpi-value tone-na" id="pc-na">–</p></article>
+        </div>
+        <section class="card">
+          <div class="section-head">
+            <h2>Benchmark checks</h2>
+            <div class="filters">
+              <label class="visually-hidden" for="pc-filter-status">Filter by status</label>
+              <select id="pc-filter-status">
+                <option value="all">All statuses</option>
+                <option value="failed">Noncompliant</option>
+                <option value="passed">Compliant</option>
+                <option value="unknown">Unknown</option>
+                <option value="not_applicable">Not applicable</option>
+              </select>
+              <label class="visually-hidden" for="pc-filter-text">Search checks</label>
+              <input type="search" id="pc-filter-text" placeholder="Search checks…">
+            </div>
+          </div>
+          <p class="empty" id="pc-checks-empty" hidden>No checks match.</p>
+          <div class="table-wrap">
+            <table class="data-table findings" id="pc-checks">
+              <thead><tr><th>Check</th><th>Status</th><th>Evidence / reason</th><th>Expected</th><th>Remediation</th><th>Frameworks</th><th>Assessed</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-findings" class="view" hidden>
+        <section class="card">
+          <div class="section-head">
+            <h2>Prioritized findings <span class="muted" id="risk-count"></span></h2>
+            <div class="filters">
+              <label class="visually-hidden" for="risk-band">Filter by band</label>
+              <select id="risk-band"><option value="">All bands</option></select>
+            </div>
+          </div>
+          <p class="muted" id="risk-list-basis"></p>
+          <p class="empty" id="risk-empty" hidden>No scored findings match.</p>
+          <div class="table-wrap">
+            <table class="data-table findings risk-table" id="risk-table">
+              <thead><tr>
+                <th aria-sort="descending"><button type="button" class="sort-btn" data-sort="score">Score</button></th>
+                <th aria-sort="none"><button type="button" class="sort-btn" data-sort="band">Band</button></th>
+                <th>Endpoint / seat</th><th>Finding</th><th>Status</th>
+                <th aria-sort="none"><button type="button" class="sort-btn" data-sort="days">Days open</button></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <details class="needs-data" id="needs-data">
+            <summary>Needs data (<span id="needs-data-total">0</span>): unknown results, not scored</summary>
+            <ul id="needs-data-list"></ul>
+          </details>
+        </section>
+        <details class="card raw-results" id="raw-results">
+          <summary><strong>Raw Wazuh results</strong>: <span id="raw-count">failed checks</span> across endpoints
+            <span class="muted">(includes checks outside the requirement catalogue; not prioritized)</span></summary>
+          <p class="muted" id="findings-basis"></p>
+          <p class="empty" id="prio-empty" hidden>No failed checks in this data source.</p>
+          <ol class="prio-list" id="prio-list"></ol>
+        </details>
+      </section>
+
+      <section id="view-assets" class="view" hidden>
+        <p class="muted">Assignments are saved in the local SQLite database and apply to both data sources.
+          Departments are never guessed from hostnames; PCs without an assignment show <strong>Unassigned</strong>.
+          A saved agent-ID assignment takes precedence over a hostname assignment.</p>
+        <section class="card">
+          <div class="section-head"><h2>Endpoints in this data source</h2></div>
+          <div class="table-wrap">
+            <table class="data-table" id="asset-endpoints">
+              <thead><tr><th>Hostname</th><th>Agent ID</th><th>Department</th><th>Building</th><th>Floor</th><th>Room</th><th>Assignment</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2 id="asset-form-title">Assign an endpoint</h2></div>
+          <form id="asset-form" class="asset-form">
+            <label>Match by
+              <select id="asset-key-type"><option value="agent_id">Wazuh agent ID</option><option value="hostname">Hostname</option></select>
+            </label>
+            <label>Agent ID / hostname<input id="asset-key-value" required maxlength="253" autocomplete="off"></label>
+            <label>Department<input id="asset-department" maxlength="100" autocomplete="off"></label>
+            <label>Building<input id="asset-building" maxlength="100" autocomplete="off"></label>
+            <label>Floor<input id="asset-floor" maxlength="100" autocomplete="off"></label>
+            <label>Room<input id="asset-room" maxlength="100" autocomplete="off"></label>
+            <label>Role
+              <select id="asset-role">
+                <option value="agent">Agent</option>
+                <option value="team_lead">Team lead</option>
+                <option value="it_admin">IT admin</option>
+                <option value="shared_kiosk">Shared kiosk</option>
+              </select>
+            </label>
+            <label class="check-label"><input type="checkbox" id="asset-client-data"> Handles client data</label>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save assignment</button>
+              <button type="reset" class="btn btn-secondary">Clear</button>
+            </div>
+          </form>
+          <p id="asset-message" class="status" role="status" aria-live="polite"></p>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Import CSV</h2></div>
+          <p class="muted">Header row: <code>agent_id,hostname,department,building,floor,room</code>, optionally followed by
+            <code>handles_client_data</code> (true/false) and <code>role</code> (agent, team_lead, it_admin, shared_kiosk).
+            Each row needs an agent_id or a hostname. If any row is invalid, nothing is imported.</p>
+          <label class="btn btn-secondary" for="asset-csv">Choose CSV file</label>
+          <input type="file" id="asset-csv" accept=".csv,text/csv" class="visually-hidden">
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Saved assignments</h2><span class="muted" id="asset-count"></span></div>
+          <p class="empty" id="asset-saved-empty" hidden>No assignments saved yet.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="asset-saved">
+              <thead><tr><th>Match by</th><th>Value</th><th>Department</th><th>Building</th><th>Floor</th><th>Room</th><th>Role</th><th>Client data</th><th>Updated</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-admin" class="view" hidden>
+        <section class="card">
+          <div class="section-head"><h2>Accounts</h2></div>
+          <p class="muted">Administrators manage accounts, assets, floor plans and exceptions. Reviewers review
+            findings, record simulated fixes and notes, and prepare reports. Passwords need 12+ characters.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="users-table">
+              <thead><tr><th>Username</th><th>Role</th><th>Active</th><th>Last sign-in</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="user-form" class="asset-form">
+            <label>Username<input id="user-username" required maxlength="32" autocomplete="off"></label>
+            <label>Password<input id="user-password" type="password" required minlength="12" autocomplete="new-password"></label>
+            <label>Role<select id="user-role"><option value="reviewer">Reviewer</option><option value="admin">Administrator</option></select></label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Create account</button></div>
+          </form>
+          <p id="user-message" class="status" role="status" aria-live="polite"></p>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Requirement catalogue <span class="muted" id="req-version"></span></h2></div>
+          <p class="muted">Edited in <code>config/requirements.json</code>; raise its version when it changes. Findings keep the
+            version they were created with.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="req-table">
+              <thead><tr><th>ID</th><th>Area</th><th>Requirement</th><th>Severity</th><th class="num">Mapped SCA checks</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <dialog id="check-dialog" class="check-dialog" aria-labelledby="dlg-title">
+      <form method="dialog" class="dialog-close"><button class="btn btn-secondary" aria-label="Close">Close</button></form>
+      <h2 id="dlg-title"></h2>
+      <div id="dlg-body"></div>
+    </dialog>
+
+    <section id="view-report" class="view" hidden>
+    <div class="actions report-actions">
+      <form id="wazuh-form" class="wazuh-form">
+        <label class="visually-hidden" for="agent-id">Wazuh agent ID</label>
+        <input type="text" id="agent-id" value="001" inputmode="numeric" pattern="[0-9]{3,8}" maxlength="8" title="Wazuh agent ID, e.g. 001">
+        <button type="submit" class="btn btn-secondary">Load from Wazuh</button>
+      </form>
+      <button type="button" id="load-sample" class="btn btn-secondary">Load sample</button>
+      <label class="btn btn-primary" for="file-input">Upload SCA JSON</label>
+      <input type="file" id="file-input" accept=".json,application/json" class="visually-hidden">
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+    <div id="error" class="alert" role="alert" hidden></div>
+
+    <section id="report" hidden>
+      <p class="source">Source: <strong id="source-name"></strong></p>
+      <div class="policy-bar" id="policy-bar" hidden>
+        <label for="policy-select">Policy</label>
+        <select id="policy-select"></select>
+      </div>
+
+      <div class="kpis">
+        <article class="card kpi kpi-main">
+          <h2>Overall pass rate</h2>
+          <p class="kpi-value" id="pass-rate">–</p>
+          <div class="meter" aria-hidden="true"><div class="meter-fill" id="pass-meter"></div></div>
+          <p class="kpi-note">Passed ÷ (passed + failed); not-applicable and unknown results excluded.
+            Scores cover only checks the Wazuh policy implements; recommendations it marks
+            "Not Implemented" are not assessed.</p>
+        </article>
+        <article class="card kpi"><h2>Passed</h2><p class="kpi-value tone-pass" id="count-passed">0</p></article>
+        <article class="card kpi"><h2>Failed</h2><p class="kpi-value tone-fail" id="count-failed">0</p></article>
+        <article class="card kpi"><h2>Not applicable</h2><p class="kpi-value tone-na" id="count-not_applicable">0</p></article>
+        <article class="card kpi"><h2>Unknown</h2><p class="kpi-value tone-unknown" id="count-unknown">0</p></article>
+        <article class="card kpi"><h2>Total checks</h2><p class="kpi-value" id="count-total">0</p></article>
+      </div>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Compliance by framework</h2>
+          <span class="muted" id="framework-count"></span>
+        </div>
+        <p class="empty" id="frameworks-empty" hidden>No checks in this file carry compliance mappings.</p>
+        <div class="table-wrap">
+          <table class="data-table" id="frameworks-table">
+            <thead>
+              <tr><th>Framework</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Not app.</th><th class="num">Unknown</th><th>Pass rate</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Findings</h2>
+          <div class="filters">
+            <label class="visually-hidden" for="filter-status">Filter by result</label>
+            <select id="filter-status">
+              <option value="all">All results</option>
+              <option value="failed">Failed</option>
+              <option value="passed">Passed</option>
+              <option value="not_applicable">Not applicable</option>
+              <option value="unknown">Unknown</option>
+            </select>
+            <label class="visually-hidden" for="filter-text">Search findings</label>
+            <input type="search" id="filter-text" placeholder="Search checks…">
+          </div>
+        </div>
+        <p class="empty" id="findings-empty" hidden>No findings match.</p>
+        <div class="table-wrap">
+          <table class="data-table findings" id="findings-table">
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Reason / evidence</th><th>Remediation</th><th>Compliance</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+    </section>
+    </section>
+  </main>
+</body>
+</html>

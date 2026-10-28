@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "_about": "Windows events read from Wazuh alerts (field data.win.system.eventID, confirmed in Wazuh 4.x alerts only by documentation, not yet in this lab). Event 5001 needs the Microsoft-Windows-Windows Defender/Operational channel in the agent's ossec.conf. verify_with: requirements whose passing SCA check verifies a fixed finding; empty means a newer SCA scan with no repeat of the event.",
+  "lookback_days": 30,
+  "events": [
+    {"event_id": "4719", "channel": "Security", "title": "Audit policy changed", "requirement_id": "REQ-AU-03", "min_count": 1, "verify_with": ["REQ-AU-01", "REQ-AU-02"]},
+    {"event_id": "1102", "channel": "Security", "title": "Security log cleared", "requirement_id": "REQ-AU-04", "min_count": 1, "verify_with": []},
+    {"event_id": "4720", "channel": "Security", "title": "New user account created", "requirement_id": "REQ-AC-03", "min_count": 1, "verify_with": []},
+    {"event_id": "4732", "channel": "Security", "title": "User added to a security-enabled local group", "requirement_id": "REQ-AC-04", "min_count": 1, "verify_with": []},
+    {"event_id": "4625", "channel": "Security", "title": "Repeated failed sign-ins", "requirement_id": "REQ-AC-05", "min_count": 5, "verify_with": ["REQ-AC-01"]},
+    {"event_id": "5001", "channel": "Microsoft-Windows-Windows Defender/Operational", "title": "Defender real-time protection turned off", "requirement_id": "REQ-AV-01", "min_count": 1, "verify_with": ["REQ-AV-01"]}
+  ]
+}

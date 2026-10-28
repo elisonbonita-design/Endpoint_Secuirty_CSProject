@@ -1,0 +1,1379 @@
+{
+ "label": "Sample data: fictional endpoints, departments and results for demonstration only",
+ "as_of": "2026-01-01T12:00:00Z",
+ "agents": [
+  {
+   "id": "S01",
+   "name": "SAMPLE-FIN-01",
+   "status": "active",
+   "last_keepalive": "2026-01-01T11:58:00Z",
+   "os": "Sample OS",
+   "ip": "192.0.2.11"
+  },
+  {
+   "id": "S02",
+   "name": "SAMPLE-FIN-02",
+   "status": "active",
+   "last_keepalive": "2026-01-01T11:57:30Z",
+   "os": "Sample OS",
+   "ip": "192.0.2.12"
+  },
+  {
+   "id": "S03",
+   "name": "SAMPLE-HR-01",
+   "status": "disconnected",
+   "last_keepalive": "2025-12-31T16:05:00Z",
+   "os": "Sample OS",
+   "ip": "192.0.2.21"
+  },
+  {
+   "id": "S04",
+   "name": "SAMPLE-IT-01",
+   "status": "active",
+   "last_keepalive": "2026-01-01T11:59:10Z",
+   "os": "Sample OS",
+   "ip": "192.0.2.31"
+  },
+  {
+   "id": "S05",
+   "name": "SAMPLE-IT-02",
+   "status": "active",
+   "last_keepalive": "2025-12-30T08:00:00Z",
+   "os": "Sample OS",
+   "ip": "192.0.2.32"
+  },
+  {
+   "id": "S06",
+   "name": "SAMPLE-LAB-01",
+   "status": "active",
+   "last_keepalive": "2026-01-01T11:58:45Z",
+   "os": "Sample OS",
+   "ip": "192.0.2.41"
+  },
+  {
+   "id": "S07",
+   "name": "SAMPLE-NEW-01",
+   "status": "never_connected",
+   "last_keepalive": null,
+   "os": null,
+   "ip": null
+  }
+ ],
+ "assets": [
+  {
+   "agent_id": "S01",
+   "department": "Finance (sample)",
+   "building": "HQ",
+   "floor": "2",
+   "room": "201"
+  },
+  {
+   "agent_id": "S02",
+   "department": "Finance (sample)",
+   "building": "HQ",
+   "floor": "2",
+   "room": "203"
+  },
+  {
+   "agent_id": "S03",
+   "department": "Human Resources (sample)",
+   "building": "HQ",
+   "floor": "3",
+   "room": "305"
+  },
+  {
+   "agent_id": "S04",
+   "department": "IT (sample)",
+   "building": "HQ",
+   "floor": "1",
+   "room": "105"
+  },
+  {
+   "agent_id": "S05",
+   "department": "IT (sample)",
+   "building": "HQ",
+   "floor": "1",
+   "room": null
+  }
+ ],
+ "documents": [
+  {
+   "check": {
+    "id": "S1",
+    "name": "Ensure SMBv1 is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the 'SMB1' registry value to 0 and restart the Server service.",
+    "rationale": "SMBv1 is outdated and has known remote-code-execution vulnerabilities.",
+    "description": "SMBv1 should be disabled on every endpoint. The recommended state for this setting is: Disabled.",
+    "targets": {
+     "registry": [
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "2.2.4"
+     ],
+     "nist_800_53": [
+      "CM.1"
+     ],
+     "cis": [
+      "18.4.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S01",
+    "name": "SAMPLE-FIN-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S2",
+    "name": "Ensure minimum password length is 14 or more characters.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set 'Minimum password length' to 14 or more in the local or domain password policy.",
+    "rationale": "Short passwords are easier to guess or brute force.",
+    "description": "Defines the fewest characters a password may contain. The recommended state for this setting is: 14 or more character(s).",
+    "targets": {
+     "command": [
+      "net accounts"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "8.3.6"
+     ],
+     "hipaa": [
+      "164.308.a.5"
+     ],
+     "cis": [
+      "1.1.4"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S01",
+    "name": "SAMPLE-FIN-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S3",
+    "name": "Ensure the host firewall is enabled for all profiles.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Enable Windows Defender Firewall for the Domain, Private and Public profiles.",
+    "rationale": "A host firewall limits network exposure of local services.",
+    "description": "The recommended state for this setting is: On (recommended).",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "9.1.1"
+     ],
+     "nist_800_53": [
+      "SC.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S01",
+    "name": "SAMPLE-FIN-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S4",
+    "name": "Ensure the Telnet client is not installed.",
+    "result": "Not applicable",
+    "reason": "Sample: feature query returned no data on this endpoint.",
+    "remediation": "Remove the Telnet client optional feature.",
+    "rationale": "Telnet sends credentials in clear text.",
+    "description": "Telnet should not be installed.",
+    "targets": {
+     "command": [
+      "dism /online /get-features"
+     ]
+    },
+    "compliance": {
+     "nist_800_53": [
+      "CM.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S01",
+    "name": "SAMPLE-FIN-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S5",
+    "name": "Ensure screen lock activates after 15 minutes or less.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set the machine inactivity limit to 900 seconds or fewer.",
+    "rationale": "Locks unattended sessions.",
+    "description": "The recommended state for this setting is: 900 or fewer second(s), but not 0.",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.7.3"
+     ],
+     "pci_dss": [
+      "8.2.8"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S01",
+    "name": "SAMPLE-FIN-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S6",
+    "name": "Ensure the Guest account is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Disable the built-in Guest account.",
+    "rationale": "The Guest account allows unauthenticated local access.",
+    "description": "The recommended state for this setting is: Disabled.",
+    "targets": {
+     "command": [
+      "net user guest"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.1.1"
+     ],
+     "pci_dss": [
+      "2.2.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S01",
+    "name": "SAMPLE-FIN-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S1",
+    "name": "Ensure SMBv1 is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the 'SMB1' registry value to 0 and restart the Server service.",
+    "rationale": "SMBv1 is outdated and has known remote-code-execution vulnerabilities.",
+    "description": "SMBv1 should be disabled on every endpoint. The recommended state for this setting is: Disabled.",
+    "targets": {
+     "registry": [
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "2.2.4"
+     ],
+     "nist_800_53": [
+      "CM.1"
+     ],
+     "cis": [
+      "18.4.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S02",
+    "name": "SAMPLE-FIN-02"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:05:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S2",
+    "name": "Ensure minimum password length is 14 or more characters.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set 'Minimum password length' to 14 or more in the local or domain password policy.",
+    "rationale": "Short passwords are easier to guess or brute force.",
+    "description": "Defines the fewest characters a password may contain. The recommended state for this setting is: 14 or more character(s).",
+    "targets": {
+     "command": [
+      "net accounts"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "8.3.6"
+     ],
+     "hipaa": [
+      "164.308.a.5"
+     ],
+     "cis": [
+      "1.1.4"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S02",
+    "name": "SAMPLE-FIN-02"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:05:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S3",
+    "name": "Ensure the host firewall is enabled for all profiles.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Enable Windows Defender Firewall for the Domain, Private and Public profiles.",
+    "rationale": "A host firewall limits network exposure of local services.",
+    "description": "The recommended state for this setting is: On (recommended).",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "9.1.1"
+     ],
+     "nist_800_53": [
+      "SC.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S02",
+    "name": "SAMPLE-FIN-02"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:05:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S4",
+    "name": "Ensure the Telnet client is not installed.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Remove the Telnet client optional feature.",
+    "rationale": "Telnet sends credentials in clear text.",
+    "description": "Telnet should not be installed.",
+    "targets": {
+     "command": [
+      "dism /online /get-features"
+     ]
+    },
+    "compliance": {
+     "nist_800_53": [
+      "CM.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S02",
+    "name": "SAMPLE-FIN-02"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:05:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S5",
+    "name": "Ensure screen lock activates after 15 minutes or less.",
+    "result": null,
+    "reason": null,
+    "remediation": "Set the machine inactivity limit to 900 seconds or fewer.",
+    "rationale": "Locks unattended sessions.",
+    "description": "The recommended state for this setting is: 900 or fewer second(s), but not 0.",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.7.3"
+     ],
+     "pci_dss": [
+      "8.2.8"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S02",
+    "name": "SAMPLE-FIN-02"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:05:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S6",
+    "name": "Ensure the Guest account is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Disable the built-in Guest account.",
+    "rationale": "The Guest account allows unauthenticated local access.",
+    "description": "The recommended state for this setting is: Disabled.",
+    "targets": {
+     "command": [
+      "net user guest"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.1.1"
+     ],
+     "pci_dss": [
+      "2.2.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S02",
+    "name": "SAMPLE-FIN-02"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:05:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S1",
+    "name": "Ensure SMBv1 is disabled.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set the 'SMB1' registry value to 0 and restart the Server service.",
+    "rationale": "SMBv1 is outdated and has known remote-code-execution vulnerabilities.",
+    "description": "SMBv1 should be disabled on every endpoint. The recommended state for this setting is: Disabled.",
+    "targets": {
+     "registry": [
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "2.2.4"
+     ],
+     "nist_800_53": [
+      "CM.1"
+     ],
+     "cis": [
+      "18.4.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S03",
+    "name": "SAMPLE-HR-01"
+   },
+   "state": {
+    "modified_at": "2025-12-31T15:40:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S2",
+    "name": "Ensure minimum password length is 14 or more characters.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set 'Minimum password length' to 14 or more in the local or domain password policy.",
+    "rationale": "Short passwords are easier to guess or brute force.",
+    "description": "Defines the fewest characters a password may contain. The recommended state for this setting is: 14 or more character(s).",
+    "targets": {
+     "command": [
+      "net accounts"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "8.3.6"
+     ],
+     "hipaa": [
+      "164.308.a.5"
+     ],
+     "cis": [
+      "1.1.4"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S03",
+    "name": "SAMPLE-HR-01"
+   },
+   "state": {
+    "modified_at": "2025-12-31T15:40:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S3",
+    "name": "Ensure the host firewall is enabled for all profiles.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Enable Windows Defender Firewall for the Domain, Private and Public profiles.",
+    "rationale": "A host firewall limits network exposure of local services.",
+    "description": "The recommended state for this setting is: On (recommended).",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "9.1.1"
+     ],
+     "nist_800_53": [
+      "SC.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S03",
+    "name": "SAMPLE-HR-01"
+   },
+   "state": {
+    "modified_at": "2025-12-31T15:40:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S4",
+    "name": "Ensure the Telnet client is not installed.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Remove the Telnet client optional feature.",
+    "rationale": "Telnet sends credentials in clear text.",
+    "description": "Telnet should not be installed.",
+    "targets": {
+     "command": [
+      "dism /online /get-features"
+     ]
+    },
+    "compliance": {
+     "nist_800_53": [
+      "CM.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S03",
+    "name": "SAMPLE-HR-01"
+   },
+   "state": {
+    "modified_at": "2025-12-31T15:40:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S5",
+    "name": "Ensure screen lock activates after 15 minutes or less.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set the machine inactivity limit to 900 seconds or fewer.",
+    "rationale": "Locks unattended sessions.",
+    "description": "The recommended state for this setting is: 900 or fewer second(s), but not 0.",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.7.3"
+     ],
+     "pci_dss": [
+      "8.2.8"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S03",
+    "name": "SAMPLE-HR-01"
+   },
+   "state": {
+    "modified_at": "2025-12-31T15:40:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S6",
+    "name": "Ensure the Guest account is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Disable the built-in Guest account.",
+    "rationale": "The Guest account allows unauthenticated local access.",
+    "description": "The recommended state for this setting is: Disabled.",
+    "targets": {
+     "command": [
+      "net user guest"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.1.1"
+     ],
+     "pci_dss": [
+      "2.2.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S03",
+    "name": "SAMPLE-HR-01"
+   },
+   "state": {
+    "modified_at": "2025-12-31T15:40:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S1",
+    "name": "Ensure SMBv1 is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the 'SMB1' registry value to 0 and restart the Server service.",
+    "rationale": "SMBv1 is outdated and has known remote-code-execution vulnerabilities.",
+    "description": "SMBv1 should be disabled on every endpoint. The recommended state for this setting is: Disabled.",
+    "targets": {
+     "registry": [
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "2.2.4"
+     ],
+     "nist_800_53": [
+      "CM.1"
+     ],
+     "cis": [
+      "18.4.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S04",
+    "name": "SAMPLE-IT-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:10:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S2",
+    "name": "Ensure minimum password length is 14 or more characters.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set 'Minimum password length' to 14 or more in the local or domain password policy.",
+    "rationale": "Short passwords are easier to guess or brute force.",
+    "description": "Defines the fewest characters a password may contain. The recommended state for this setting is: 14 or more character(s).",
+    "targets": {
+     "command": [
+      "net accounts"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "8.3.6"
+     ],
+     "hipaa": [
+      "164.308.a.5"
+     ],
+     "cis": [
+      "1.1.4"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S04",
+    "name": "SAMPLE-IT-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:10:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S3",
+    "name": "Ensure the host firewall is enabled for all profiles.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Enable Windows Defender Firewall for the Domain, Private and Public profiles.",
+    "rationale": "A host firewall limits network exposure of local services.",
+    "description": "The recommended state for this setting is: On (recommended).",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "9.1.1"
+     ],
+     "nist_800_53": [
+      "SC.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S04",
+    "name": "SAMPLE-IT-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:10:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S4",
+    "name": "Ensure the Telnet client is not installed.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Remove the Telnet client optional feature.",
+    "rationale": "Telnet sends credentials in clear text.",
+    "description": "Telnet should not be installed.",
+    "targets": {
+     "command": [
+      "dism /online /get-features"
+     ]
+    },
+    "compliance": {
+     "nist_800_53": [
+      "CM.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S04",
+    "name": "SAMPLE-IT-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:10:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S5",
+    "name": "Ensure screen lock activates after 15 minutes or less.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the machine inactivity limit to 900 seconds or fewer.",
+    "rationale": "Locks unattended sessions.",
+    "description": "The recommended state for this setting is: 900 or fewer second(s), but not 0.",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.7.3"
+     ],
+     "pci_dss": [
+      "8.2.8"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S04",
+    "name": "SAMPLE-IT-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:10:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S6",
+    "name": "Ensure the Guest account is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Disable the built-in Guest account.",
+    "rationale": "The Guest account allows unauthenticated local access.",
+    "description": "The recommended state for this setting is: Disabled.",
+    "targets": {
+     "command": [
+      "net user guest"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.1.1"
+     ],
+     "pci_dss": [
+      "2.2.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S04",
+    "name": "SAMPLE-IT-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:10:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S1",
+    "name": "Ensure SMBv1 is disabled.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the 'SMB1' registry value to 0 and restart the Server service.",
+    "rationale": "SMBv1 is outdated and has known remote-code-execution vulnerabilities.",
+    "description": "SMBv1 should be disabled on every endpoint. The recommended state for this setting is: Disabled.",
+    "targets": {
+     "registry": [
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "2.2.4"
+     ],
+     "nist_800_53": [
+      "CM.1"
+     ],
+     "cis": [
+      "18.4.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S05",
+    "name": "SAMPLE-IT-02"
+   },
+   "state": {
+    "modified_at": "2025-12-29T22:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S2",
+    "name": "Ensure minimum password length is 14 or more characters.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set 'Minimum password length' to 14 or more in the local or domain password policy.",
+    "rationale": "Short passwords are easier to guess or brute force.",
+    "description": "Defines the fewest characters a password may contain. The recommended state for this setting is: 14 or more character(s).",
+    "targets": {
+     "command": [
+      "net accounts"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "8.3.6"
+     ],
+     "hipaa": [
+      "164.308.a.5"
+     ],
+     "cis": [
+      "1.1.4"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S05",
+    "name": "SAMPLE-IT-02"
+   },
+   "state": {
+    "modified_at": "2025-12-29T22:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S3",
+    "name": "Ensure the host firewall is enabled for all profiles.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Enable Windows Defender Firewall for the Domain, Private and Public profiles.",
+    "rationale": "A host firewall limits network exposure of local services.",
+    "description": "The recommended state for this setting is: On (recommended).",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "9.1.1"
+     ],
+     "nist_800_53": [
+      "SC.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S05",
+    "name": "SAMPLE-IT-02"
+   },
+   "state": {
+    "modified_at": "2025-12-29T22:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S4",
+    "name": "Ensure the Telnet client is not installed.",
+    "result": "Not applicable",
+    "reason": "Sample: feature query returned no data on this endpoint.",
+    "remediation": "Remove the Telnet client optional feature.",
+    "rationale": "Telnet sends credentials in clear text.",
+    "description": "Telnet should not be installed.",
+    "targets": {
+     "command": [
+      "dism /online /get-features"
+     ]
+    },
+    "compliance": {
+     "nist_800_53": [
+      "CM.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S05",
+    "name": "SAMPLE-IT-02"
+   },
+   "state": {
+    "modified_at": "2025-12-29T22:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S5",
+    "name": "Ensure screen lock activates after 15 minutes or less.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the machine inactivity limit to 900 seconds or fewer.",
+    "rationale": "Locks unattended sessions.",
+    "description": "The recommended state for this setting is: 900 or fewer second(s), but not 0.",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.7.3"
+     ],
+     "pci_dss": [
+      "8.2.8"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S05",
+    "name": "SAMPLE-IT-02"
+   },
+   "state": {
+    "modified_at": "2025-12-29T22:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S6",
+    "name": "Ensure the Guest account is disabled.",
+    "result": "Not run",
+    "reason": null,
+    "remediation": "Disable the built-in Guest account.",
+    "rationale": "The Guest account allows unauthenticated local access.",
+    "description": "The recommended state for this setting is: Disabled.",
+    "targets": {
+     "command": [
+      "net user guest"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.1.1"
+     ],
+     "pci_dss": [
+      "2.2.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S05",
+    "name": "SAMPLE-IT-02"
+   },
+   "state": {
+    "modified_at": "2025-12-29T22:00:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S1",
+    "name": "Ensure SMBv1 is disabled.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set the 'SMB1' registry value to 0 and restart the Server service.",
+    "rationale": "SMBv1 is outdated and has known remote-code-execution vulnerabilities.",
+    "description": "SMBv1 should be disabled on every endpoint. The recommended state for this setting is: Disabled.",
+    "targets": {
+     "registry": [
+      "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "2.2.4"
+     ],
+     "nist_800_53": [
+      "CM.1"
+     ],
+     "cis": [
+      "18.4.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S06",
+    "name": "SAMPLE-LAB-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:20:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S2",
+    "name": "Ensure minimum password length is 14 or more characters.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Set 'Minimum password length' to 14 or more in the local or domain password policy.",
+    "rationale": "Short passwords are easier to guess or brute force.",
+    "description": "Defines the fewest characters a password may contain. The recommended state for this setting is: 14 or more character(s).",
+    "targets": {
+     "command": [
+      "net accounts"
+     ]
+    },
+    "compliance": {
+     "pci_dss": [
+      "8.3.6"
+     ],
+     "hipaa": [
+      "164.308.a.5"
+     ],
+     "cis": [
+      "1.1.4"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S06",
+    "name": "SAMPLE-LAB-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:20:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S3",
+    "name": "Ensure the host firewall is enabled for all profiles.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Enable Windows Defender Firewall for the Domain, Private and Public profiles.",
+    "rationale": "A host firewall limits network exposure of local services.",
+    "description": "The recommended state for this setting is: On (recommended).",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\DomainProfile"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "9.1.1"
+     ],
+     "nist_800_53": [
+      "SC.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S06",
+    "name": "SAMPLE-LAB-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:20:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S4",
+    "name": "Ensure the Telnet client is not installed.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Remove the Telnet client optional feature.",
+    "rationale": "Telnet sends credentials in clear text.",
+    "description": "Telnet should not be installed.",
+    "targets": {
+     "command": [
+      "dism /online /get-features"
+     ]
+    },
+    "compliance": {
+     "nist_800_53": [
+      "CM.7"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S06",
+    "name": "SAMPLE-LAB-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:20:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S5",
+    "name": "Ensure screen lock activates after 15 minutes or less.",
+    "result": "passed",
+    "reason": null,
+    "remediation": "Set the machine inactivity limit to 900 seconds or fewer.",
+    "rationale": "Locks unattended sessions.",
+    "description": "The recommended state for this setting is: 900 or fewer second(s), but not 0.",
+    "targets": {
+     "registry": [
+      "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.7.3"
+     ],
+     "pci_dss": [
+      "8.2.8"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S06",
+    "name": "SAMPLE-LAB-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:20:00Z"
+   }
+  },
+  {
+   "check": {
+    "id": "S6",
+    "name": "Ensure the Guest account is disabled.",
+    "result": "failed",
+    "reason": null,
+    "remediation": "Disable the built-in Guest account.",
+    "rationale": "The Guest account allows unauthenticated local access.",
+    "description": "The recommended state for this setting is: Disabled.",
+    "targets": {
+     "command": [
+      "net user guest"
+     ]
+    },
+    "compliance": {
+     "cis": [
+      "2.3.1.1"
+     ],
+     "pci_dss": [
+      "2.2.2"
+     ]
+    }
+   },
+   "policy": {
+    "id": "sample_policy",
+    "name": "Sample Hardening Policy"
+   },
+   "agent": {
+    "id": "S06",
+    "name": "SAMPLE-LAB-01"
+   },
+   "state": {
+    "modified_at": "2026-01-01T09:20:00Z"
+   }
+  }
+ ]
+}

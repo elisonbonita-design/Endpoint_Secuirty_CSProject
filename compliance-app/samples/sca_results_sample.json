@@ -1,0 +1,29 @@
+[
+  {
+    "check": {"id": "S1", "name": "Ensure SMBv1 is disabled.", "result": "passed", "reason": null,
+              "remediation": "Set 'SMB1' registry key to 0.",
+              "compliance": {"pci_dss": ["2.2.4"], "nist_800_53": ["CM.1"]}},
+    "policy": {"id": "sample_policy", "name": "Sample Hardening Policy", "file": "sample_policy.yml"},
+    "state": {"modified_at": "2026-01-01T00:00:00Z"}
+  },
+  {
+    "check": {"id": "S2", "name": "Ensure password minimum length is 14.", "result": "failed", "reason": null,
+              "remediation": "Set minimum password length to 14 or more.",
+              "compliance": {"pci_dss": ["8.3.6"], "hipaa": ["164.308.a.5"]}},
+    "policy": {"id": "sample_policy", "name": "Sample Hardening Policy", "file": "sample_policy.yml"},
+    "state": {"modified_at": "2026-01-01T00:00:00Z"}
+  },
+  {
+    "check": {"id": "S3", "name": "Ensure firewall is enabled.", "result": "Passed", "reason": null,
+              "remediation": "Enable the host firewall."},
+    "policy": {"id": "sample_policy", "name": "Sample Hardening Policy", "file": "sample_policy.yml"},
+    "state": {"modified_at": "2026-01-01T00:00:00Z"}
+  },
+  {
+    "check": {"id": "S4", "name": "Ensure telnet client is not installed.", "result": "Not applicable",
+              "reason": "Package manager not found.", "remediation": "Remove the telnet client package.",
+              "compliance": {"nist_800_53": ["CM.7"]}},
+    "policy": {"id": "sample_policy", "name": "Sample Hardening Policy", "file": "sample_policy.yml"},
+    "state": {"modified_at": "2026-01-01T00:00:00Z"}
+  }
+]

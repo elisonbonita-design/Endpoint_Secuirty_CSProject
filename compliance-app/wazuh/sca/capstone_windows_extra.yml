@@ -1,0 +1,101 @@
+# Capstone supplementary SCA policy for Windows endpoints (Wazuh 4.x local agent policy).
+#
+# Fills gaps in "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0" (cis_win11_enterprise.yml):
+#   - BitLocker there is only checked through policy settings; 99001 checks the actual protection status.
+#   - CIS 1.1.5 and 1.1.7 are "Not Implemented" there; 99004 and 99005 implement them.
+#   - Defender protection state and Secure Boot are not checked there.
+# Every rule is a read-only query. Wazuh only reports results; it never changes settings.
+#
+# Deploy on the Windows agent (Administrator PowerShell):
+#   1. Run each command from the rules below by hand once and confirm the output looks as expected.
+#   2. New-Item -ItemType Directory -Force 'C:\Program Files (x86)\ossec-agent\sca-custom'
+#      Copy-Item .\capstone_windows_extra.yml 'C:\Program Files (x86)\ossec-agent\sca-custom\'
+#   3. In C:\Program Files (x86)\ossec-agent\ossec.conf, inside <sca> ... </sca>, add:
+#        <policies>
+#          <policy>C:\Program Files (x86)\ossec-agent\sca-custom\capstone_windows_extra.yml</policy>
+#        </policies>
+#   4. Restart-Service WazuhSvc
+#   5. Check ossec.log for: sca: INFO: Loaded policy '...capstone_windows_extra.yml'
+# Local agent policies may run commands; no manager change is needed.
+
+policy:
+  id: "capstone_windows_extra"
+  file: "capstone_windows_extra.yml"
+  name: "Capstone Windows supplementary checks v1.0"
+  description: "Supplementary checks for Windows endpoints: actual disk encryption, Microsoft Defender protection state, Secure Boot, and two CIS password-policy items that the Wazuh CIS Windows 11 policy does not implement."
+  references:
+    - https://www.cisecurity.org/controls/v8
+    - https://documentation.wazuh.com/current/user-manual/capabilities/sec-config-assessment/creating-custom-policies.html
+
+requirements:
+  title: "Check that the platform is Windows"
+  description: "Requirements for running the capstone supplementary checks"
+  condition: all
+  rules:
+    - 'r:HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion -> ProductName -> r:^Windows'
+
+checks:
+  - id: 99001
+    title: "Ensure the operating system drive is encrypted (BitLocker / device encryption protection is on)."
+    description: "Reads the actual protection status of the system drive from the Win32_EncryptableVolume WMI class. ProtectionStatus 1 means protection is on; 0 means off or not encrypted. Unlike BitLocker policy settings, this verifies the drive itself."
+    rationale: "Encryption policy settings alone do not prove that data at rest is protected. If a device is lost or stolen, an unencrypted system drive exposes all stored data."
+    remediation: "Turn on BitLocker (or Windows device encryption) for the system drive, store the recovery key securely, and confirm with 'manage-bde -status' that Protection Status is 'Protection On'. Test on a pilot device first."
+    compliance:
+      - cis_csc_v8: ["3.6"]
+    condition: all
+    rules:
+      - 'c:powershell (Get-CimInstance -Namespace root/cimv2/Security/MicrosoftVolumeEncryption -ClassName Win32_EncryptableVolume | Where-Object DriveLetter -eq $env:SystemDrive).ProtectionStatus -> r:^1$'
+
+  - id: 99002
+    title: "Ensure Microsoft Defender real-time protection is enabled."
+    description: "Reads RealTimeProtectionEnabled from Get-MpComputerStatus."
+    rationale: "Real-time protection scans files and processes as they are accessed. Without it, malware can run before a scheduled scan detects it."
+    remediation: "Enable real-time protection in Windows Security > Virus & threat protection, or via Group Policy: Computer Configuration\\Administrative Templates\\Windows Components\\Microsoft Defender Antivirus\\Real-time Protection. If another antivirus product is the primary solution, document that exception instead."
+    compliance:
+      - cis_csc_v8: ["10.1"]
+    condition: all
+    rules:
+      - 'c:powershell (Get-MpComputerStatus).RealTimeProtectionEnabled -> r:^True$'
+
+  - id: 99003
+    title: "Ensure Microsoft Defender antivirus signatures are no more than 7 days old."
+    description: "Reads AntivirusSignatureAge (days since the last signature update) from Get-MpComputerStatus."
+    rationale: "Outdated signatures cannot detect recently released malware."
+    remediation: "Allow Windows Update / Defender definition updates, or run 'Update-MpSignature'. Investigate why automatic updates are not being applied."
+    compliance:
+      - cis_csc_v8: ["10.2"]
+    condition: all
+    rules:
+      - 'c:powershell (Get-MpComputerStatus).AntivirusSignatureAge -> n:^(\d+) compare <= 7'
+
+  - id: 99004
+    title: "Ensure 'Password must meet complexity requirements' is set to 'Enabled'."
+    description: "Implements CIS 1.1.5, which the Wazuh CIS Windows 11 policy marks as Not Implemented. Reads PasswordComplexity from the exported local security policy."
+    rationale: "Complexity requirements make passwords harder to guess with dictionary and brute-force attacks."
+    remediation: "Set Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Account Policies\\Password Policy\\Password must meet complexity requirements to Enabled."
+    compliance:
+      - cis: ["1.1.5"]
+      - cis_csc_v8: ["5.2"]
+    condition: all
+    rules:
+      - 'c:powershell secedit /export /cfg $env:TEMP\capstone_secpol.cfg; Get-Content $env:TEMP\capstone_secpol.cfg | Select-String "PasswordComplexity"; Remove-Item $env:TEMP\capstone_secpol.cfg -> n:PasswordComplexity = (\d+) compare == 1'
+
+  - id: 99005
+    title: "Ensure 'Store passwords using reversible encryption' is set to 'Disabled'."
+    description: "Implements CIS 1.1.7, which the Wazuh CIS Windows 11 policy marks as Not Implemented. Reads ClearTextPassword from the exported local security policy."
+    rationale: "Passwords stored with reversible encryption are essentially stored in plain text and can be recovered by an attacker who obtains the account database."
+    remediation: "Set Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Account Policies\\Password Policy\\Store passwords using reversible encryption to Disabled."
+    compliance:
+      - cis: ["1.1.7"]
+    condition: all
+    rules:
+      - 'c:powershell secedit /export /cfg $env:TEMP\capstone_secpol.cfg; Get-Content $env:TEMP\capstone_secpol.cfg | Select-String "ClearTextPassword"; Remove-Item $env:TEMP\capstone_secpol.cfg -> n:ClearTextPassword = (\d+) compare == 0'
+
+  - id: 99006
+    title: "Ensure Secure Boot is enabled."
+    description: "Runs Confirm-SecureBootUEFI. It returns True when UEFI Secure Boot is on; on legacy BIOS systems it errors and the check fails."
+    rationale: "Secure Boot blocks unsigned boot loaders and boot-level malware such as bootkits, and supports measured boot for disk encryption."
+    remediation: "Enable Secure Boot in the device's UEFI firmware settings. Confirm that the disk uses GPT and that BitLocker recovery keys are available before changing firmware settings."
+    condition: all
+    rules:
+      - 'c:powershell Confirm-SecureBootUEFI -> r:^True$'

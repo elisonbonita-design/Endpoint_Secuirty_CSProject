@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compliance Report</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body class="report-page">
+<main class="container">
+  <header class="report-head">
+    <h1>Endpoint Compliance Report</h1>
+    <p><strong>{{ d.meta.label }}</strong> · data as of {{ d.meta.as_of }} · generated {{ generated_at.strftime('%Y-%m-%d %H:%M UTC') }}
+      by {{ user.username }} ({{ user.role }})</p>
+    <p class="muted">Rule-based risk weights v{{ d.weights_version }} · requirement catalogue v{{ d.catalogue_version }}.
+      Academic proof of concept in an isolated lab; {% if d.meta.is_sample %}all endpoints and results are fictional sample data{% else %}endpoints are researcher-owned lab machines with synthetic labels{% endif %}.
+      This report does not describe any company system. Use the browser's Print command to save it as PDF.</p>
+    <p class="no-print"><a href="{{ url_for('index') }}">← Dashboard</a> ·
+      <a href="{{ url_for('report_csv', source=d.meta.mode) }}">Download findings as CSV</a></p>
+    {% for w in d.warnings %}<p class="alert">{{ w }}</p>{% endfor %}
+  </header>
+
+  <section class="card">
+    <h2>Summary</h2>
+    <div class="report-grid">
+      <table class="data-table"><caption>Open scored findings by band</caption>
+        <tbody>{% for b in d.bands %}<tr><th>{{ b }}</th><td class="num">{{ d.by_band.get(b, 0) }}</td></tr>{% endfor %}
+        <tr><th>Needs data (unknown, not scored)</th><td class="num">{{ d.unknown|length }}</td></tr></tbody></table>
+      <table class="data-table"><caption>Findings by status</caption>
+        <tbody>{% for s in status_order %}<tr><th>{{ s.replace('_', ' ') }}</th><td class="num">{{ d.by_status.get(s, 0) }}</td></tr>{% endfor %}</tbody></table>
+      <table class="data-table"><caption>Findings by source</caption>
+        <tbody>{% for key, label in source_labels.items() %}<tr><th>{{ label }}</th><td class="num">{{ d.by_source.get(key, 0) }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Endpoints</h2>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Endpoint</th><th>Seat</th><th>Requirement compliance</th><th>CIS benchmark (SCA)</th><th>Highest open band</th><th>Top score</th><th>Agent</th></tr></thead>
+      <tbody>{% for e in d.endpoints %}<tr>
+        <td>{{ e.hostname or e.key }}</td><td>{{ e.seat or '—' }}</td>
+        <td>{% if e.requirements and e.requirements.compliance_rate is not none %}{{ '%.1f' % e.requirements.compliance_rate }}%
+          <span class="muted">({{ e.requirements.compliant }} compliant, {{ e.requirements.non_compliant }} non-compliant,
+          {{ e.requirements.no_data }} no data)</span>{% else %}—{% endif %}</td>
+        <td>{% if e.benchmark is not none %}{{ '%.1f' % e.benchmark }}%{% else %}—{% endif %}</td>
+        <td>{% if e.risk %}{{ e.risk.letter }} · {{ e.risk.band }}{% else %}—{% endif %}</td>
+        <td class="num">{{ e.risk.top_score if e.risk and e.risk.top_score is not none else '—' }}</td>
+        <td>{{ e.connectivity }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  {% macro finding_rows(items) %}
+    {% for f in items %}
+    <tr>
+      <td class="num">{{ f.score if f.score is not none else '—' }}</td>
+      <td>{% if f.band %}<span class="badge band-badge band-{{ band_key(f.band) }}">{{ f.band }}</span>{% else %}—{% endif %}</td>
+      <td>{{ f.endpoint_label or f.endpoint_id }}<br><span class="muted">{{ f.seat or '' }}</span></td>
+      <td><strong>{{ f.title }}</strong><br><span class="muted">{{ source_labels.get(f.source, f.source) }}{% if f.requirement_id %} · {{ f.requirement_id }} ({{ f.severity }}){% endif %}{% if f.cve_id %} · {{ f.cve_id }}{% endif %}</span>
+        {% if f.reason %}<br><span class="report-reason">{{ f.reason }}</span>{% endif %}
+        {% set h = d.histories.get(f.id, []) %}
+        {% if h %}<details open class="report-history"><summary>History ({{ h|length }})</summary><ol>
+          {% for ev in h %}<li>{{ ev.at }} · {{ ev.actor }} · {{ ev.kind }}{% if ev.to_status %}: {{ ev.from_status or '—' }} → {{ ev.to_status }}{% endif %}{% if ev.note %} · {{ ev.note }}{% endif %}</li>{% endfor %}
+        </ol></details>{% endif %}
+      </td>
+      <td>{{ f.state.replace('_', ' ') }}<br>{{ f.status.replace('_', ' ') }}</td>
+      <td>{{ f.opened_at }}{% if f.verified_at %}<br>verified {{ f.verified_at }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  {% endmacro %}
+
+  <section class="card">
+    <h2>Open findings by priority ({{ d.scored|length }})</h2>
+    <div class="table-wrap"><table class="data-table report-findings">
+      <thead><tr><th>Score</th><th>Band</th><th>Endpoint</th><th>Finding, reason and history</th><th>State / status</th><th>Opened</th></tr></thead>
+      <tbody>{{ finding_rows(d.scored) }}</tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Needs data ({{ d.unknown|length }})</h2>
+    <p class="muted">Unknown results are not counted as failures. Run a new assessment before judging them.</p>
+    <div class="table-wrap"><table class="data-table report-findings">
+      <thead><tr><th>Score</th><th>Band</th><th>Endpoint</th><th>Finding and history</th><th>State / status</th><th>Opened</th></tr></thead>
+      <tbody>{{ finding_rows(d.unknown) }}</tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Verified, cleared and excepted ({{ d.closed|length }})</h2>
+    <div class="table-wrap"><table class="data-table report-findings">
+      <thead><tr><th>Score</th><th>Band</th><th>Endpoint</th><th>Finding and history</th><th>State / status</th><th>Opened</th></tr></thead>
+      <tbody>{{ finding_rows(d.closed) }}</tbody>
+    </table></div>
+  </section>
+</main>
+</body>
+</html>

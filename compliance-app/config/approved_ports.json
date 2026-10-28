@@ -1,0 +1,5 @@
+{
+  "version": "1.0",
+  "_about": "Approved listening ports baseline for the exposure rule. The app does not collect listening ports yet (no inventory source), so this rule cannot fire until that collector exists.",
+  "ports": []
+}

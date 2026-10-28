@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "_about": "Protected paths for file integrity monitoring. Only Wazuh syscheck alerts under these prefixes become findings. The same paths must be configured in the Windows agent's <syscheck> block (see docs/sources.md). File contents are never read or stored.",
+  "lookback_days": 30,
+  "files": ["C:\\LabData\\ClientRecords"],
+  "files_requirement": "REQ-FI-01",
+  "registry": ["HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+               "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce"],
+  "registry_requirement": "REQ-FI-02"
+}

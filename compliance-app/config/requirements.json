@@ -1,0 +1,348 @@
+{
+  "version": "1.3",
+  "sca_scope": "mapped",
+  "_sca_scope": "mapped: only SCA checks listed under a requirement's sca_checks become findings (paper: results are matched to a small, documented set of requirements). The other CIS checks stay visible as raw Wazuh results (endpoint pass rate, single report) but are not prioritized. Use \"all\" to track every failed check.",
+  "_about": "Synthetic requirement catalogue for the isolated lab (CIS-based titles; no company configuration). Each finding stores the catalogue version it was created with. A check counts for a requirement only through \"sca_checks\" (exact SCA policy name + check id).",
+  "_cis_candidates": "CIS check IDs were confirmed on 2026-10-25 in the VMware lab (Wazuh 4.14.9, agent WS01, Windows 11 Pro): same IDs and titles as wazuh-src ruleset/sca/windows/cis_win11_enterprise.yml. Re-check them if Wazuh or the CIS policy version changes.",
+  "requirements": [
+    {
+      "id": "REQ-PW-01",
+      "area": "Password policy",
+      "title": "Ensure 'Minimum password length' is set to '14 or more character(s)'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Computer Configuration > Windows Settings > Security Settings > Account Policies > Password Policy > Minimum password length to 14 or more in the Default Domain Policy, then run gpupdate and re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Sample Hardening Policy",
+          "id": "S2"
+        },
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26003"
+        }
+      ]
+    },
+    {
+      "id": "REQ-PW-02",
+      "area": "Password policy",
+      "title": "Ensure 'Enforce password history' is set to '24 or more password(s)'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Account Policies > Password Policy > Enforce password history to 24 in the Default Domain Policy, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26000"
+        }
+      ]
+    },
+    {
+      "id": "REQ-PW-03",
+      "area": "Password policy",
+      "title": "Ensure 'Password must meet complexity requirements' is set to 'Enabled'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Account Policies > Password Policy > Password must meet complexity requirements to Enabled, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Capstone Windows supplementary checks v1.0",
+          "id": "99004"
+        }
+      ]
+    },
+    {
+      "id": "REQ-PW-04",
+      "area": "Password policy",
+      "title": "Ensure 'Store passwords using reversible encryption' is set to 'Disabled'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Account Policies > Password Policy > Store passwords using reversible encryption to Disabled, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Capstone Windows supplementary checks v1.0",
+          "id": "99005"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AC-01",
+      "area": "Account lockout",
+      "title": "Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Account Policies > Account Lockout Policy > Account lockout threshold to 5 in the Default Domain Policy, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26006"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AC-02",
+      "area": "Accounts",
+      "title": "Ensure 'Accounts: Guest account status' is set to 'Disabled'",
+      "severity": "medium",
+      "exposure": null,
+      "remediation": "Set Local Policies > Security Options > Accounts: Guest account status to Disabled, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Sample Hardening Policy",
+          "id": "S6"
+        },
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26009"
+        }
+      ]
+    },
+    {
+      "id": "REQ-SL-01",
+      "area": "Screen lock",
+      "title": "Ensure 'Interactive logon: Machine inactivity limit' is set to '900 or fewer second(s), but not 0'",
+      "severity": "medium",
+      "exposure": null,
+      "remediation": "Set Local Policies > Security Options > Interactive logon: Machine inactivity limit to 900 seconds or less, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Sample Hardening Policy",
+          "id": "S5"
+        },
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26025"
+        }
+      ]
+    },
+    {
+      "id": "REQ-FW-01",
+      "area": "Windows Firewall",
+      "title": "Ensure 'Windows Firewall: Domain: Firewall state' is set to 'On (recommended)'",
+      "severity": "critical",
+      "exposure": "firewall_off",
+      "remediation": "Set Windows Defender Firewall with Advanced Security > Domain Profile > Firewall state to On in the firewall GPO, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26116"
+        }
+      ]
+    },
+    {
+      "id": "REQ-FW-02",
+      "area": "Windows Firewall",
+      "title": "Ensure 'Windows Firewall: Private: Firewall state' is set to 'On (recommended)'",
+      "severity": "critical",
+      "exposure": "firewall_off",
+      "remediation": "Set Windows Defender Firewall with Advanced Security > Private Profile > Firewall state to On in the firewall GPO, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26123"
+        }
+      ]
+    },
+    {
+      "id": "REQ-FW-03",
+      "area": "Windows Firewall",
+      "title": "Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'",
+      "severity": "critical",
+      "exposure": "firewall_off",
+      "remediation": "Set Windows Defender Firewall with Advanced Security > Public Profile > Firewall state to On in the firewall GPO, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26130"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AU-01",
+      "area": "Audit policy",
+      "title": "Ensure 'Audit Credential Validation' is set to 'Success and Failure'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Advanced Audit Policy Configuration > Account Logon > Audit Credential Validation to Success and Failure in the audit GPO, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26139"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AU-02",
+      "area": "Audit policy",
+      "title": "Ensure 'Audit Process Creation' is set to include 'Success'",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Set Advanced Audit Policy Configuration > Detailed Tracking > Audit Process Creation to include Success in the audit GPO, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26144"
+        }
+      ]
+    },
+    {
+      "id": "REQ-BL-01",
+      "area": "Disk encryption",
+      "title": "Ensure the operating system drive is encrypted with BitLocker protection on",
+      "severity": "critical",
+      "exposure": null,
+      "remediation": "Turn on or resume BitLocker for the system drive (recovery key kept in Active Directory, never in this app), then confirm 'manage-bde -status' shows Protection On and re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Capstone Windows supplementary checks v1.0",
+          "id": "99001"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AV-01",
+      "area": "Antivirus",
+      "title": "Ensure Microsoft Defender real-time protection is enabled",
+      "severity": "critical",
+      "exposure": "defender_off",
+      "remediation": "Turn real-time protection back on (Windows Security > Virus & threat protection, or the Defender GPO), then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Capstone Windows supplementary checks v1.0",
+          "id": "99002"
+        },
+        {
+          "policy": "CIS Microsoft Windows 11 Enterprise Benchmark v3.0.0",
+          "id": "26395"
+        }
+      ]
+    },
+    {
+      "id": "REQ-AV-02",
+      "area": "Antivirus",
+      "title": "Ensure Microsoft Defender antivirus signatures are no more than 7 days old",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Update Defender signatures (Update-MpSignature) from the lab's local update source and check why automatic updates stopped, then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Capstone Windows supplementary checks v1.0",
+          "id": "99003"
+        }
+      ]
+    },
+    {
+      "id": "REQ-SB-01",
+      "area": "Platform security",
+      "title": "Ensure Secure Boot is enabled",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Enable Secure Boot in the UEFI firmware settings (check the disk is GPT and the BitLocker recovery key is stored in Active Directory first), then re-assess.",
+      "sca_checks": [
+        {
+          "policy": "Capstone Windows supplementary checks v1.0",
+          "id": "99006"
+        }
+      ]
+    },
+    {
+      "id": "REQ-BL-02",
+      "area": "Disk encryption",
+      "title": "OS drive reports BitLocker protection On and is 100% fully encrypted (PowerShell collector)",
+      "severity": "critical",
+      "exposure": null,
+      "remediation": "Resume or turn on BitLocker for the system drive (Resume-BitLocker -MountPoint C:), wait for encryption to reach 100%, then let the collector report again.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-BL-03",
+      "area": "Disk encryption",
+      "title": "OS drive uses XTS-AES 256-bit encryption (LAB-WS-BitLocker GPO)",
+      "severity": "medium",
+      "exposure": null,
+      "remediation": "The encryption method can only be chosen when encryption starts: decrypt, confirm the LAB-WS-BitLocker GPO sets XTS-AES 256, and encrypt again (lab test laptop only).",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-AU-03",
+      "area": "Audit policy",
+      "title": "Audit policy must not be changed outside the Group Policy baseline (event 4719)",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Find who changed the audit policy, restore it with gpupdate /force, and confirm with the next SCA scan.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-AU-04",
+      "area": "Audit policy",
+      "title": "The Security event log must not be cleared (event 1102)",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Record who cleared the log and why, restrict the 'Manage auditing and security log' right to administrators, and keep logs centrally in Wazuh.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-AC-03",
+      "area": "Accounts",
+      "title": "New local user accounts must be approved (event 4720)",
+      "severity": "medium",
+      "exposure": null,
+      "remediation": "Confirm the new account was approved; disable or delete it if not.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-AC-04",
+      "area": "Accounts",
+      "title": "Least privilege: additions to security-enabled local groups must be approved (event 4732)",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Confirm the group change was approved; remove the member from the group if not.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-AC-05",
+      "area": "Account lockout",
+      "title": "Repeated failed sign-ins must be investigated (event 4625, 5 or more in the lookback window)",
+      "severity": "medium",
+      "exposure": null,
+      "remediation": "Check which account and source caused the failures and confirm the account lockout policy is applied.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-FI-01",
+      "area": "File integrity",
+      "title": "Files in the protected synthetic client-records folder must not change without approval",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Confirm whether the change was approved. If not, restore the file from the lab backup; the next FIM check records the restore.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-FI-02",
+      "area": "File integrity",
+      "title": "Selected startup registry keys must not change without approval",
+      "severity": "high",
+      "exposure": null,
+      "remediation": "Confirm whether the startup entry is approved. If not, remove it; the next FIM check records the change.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-SW-01",
+      "area": "Software inventory",
+      "title": "Only approved software may be installed",
+      "severity": "medium",
+      "exposure": null,
+      "remediation": "Uninstall the program or add it to config/approved_software.json after approval; the next inventory scan confirms it.",
+      "sca_checks": []
+    },
+    {
+      "id": "REQ-NP-01",
+      "area": "Network ports",
+      "title": "Only approved ports may be listening",
+      "severity": "high",
+      "exposure": "unapproved_port",
+      "remediation": "Stop or block the service that opened the port (for example disable Remote Desktop), or approve the port in config/approved_ports.json; the next inventory scan confirms it.",
+      "sca_checks": []
+    }
+  ]
+}

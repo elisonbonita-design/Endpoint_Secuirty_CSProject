@@ -1,0 +1,19 @@
+# Third-party Wazuh source: reference only, not part of this project
+wazuh-src/
+
+# Local browser/test output (regenerable)
+.playwright/
+.playwright-cli/
+compliance-app/.playwright-cli/
+compliance-app/test-artifacts/**/*.webm
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Private local settings and runtime data (see compliance-app/.gitignore)
+*.env
+compliance-app/instance/assets.db*
+compliance-app/instance/secret_key
+.claude/settings.local.json

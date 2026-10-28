@@ -1,0 +1,7 @@
+# Private local settings and runtime data (never commit)
+*.env
+instance/ai.env
+instance/assets.db
+instance/assets.db-wal
+instance/assets.db-shm
+instance/secret_key

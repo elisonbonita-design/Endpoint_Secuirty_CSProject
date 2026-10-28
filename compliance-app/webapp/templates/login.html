@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Compliance Monitor</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <main class="login-wrap">
+    <form class="card login-card" method="post" action="{{ url_for('login_submit') }}">
+      <h1>Configuration Compliance</h1>
+      <p class="muted">Isolated lab prototype · synthetic data only</p>
+      {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+      {% if first_run %}<p class="alert" role="status">No accounts exist yet. Create the first administrator on the
+        server: <code>python -m webapp.auth create-user admin --role admin</code></p>{% endif %}
+      <label>Username<input name="username" autocomplete="username" required maxlength="32" autofocus></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+      <button type="submit" class="btn btn-primary">Sign in</button>
+      <p class="muted login-note">After 5 wrong passwords the account is locked for 15 minutes.</p>
+    </form>
+  </main>
+</body>
+</html>

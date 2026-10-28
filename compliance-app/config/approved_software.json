@@ -1,0 +1,5 @@
+{
+  "version": "1.0",
+  "_about": "Approved software names for the lab test laptop. An entry ending in * matches by prefix. While this list is empty the unapproved-software rule is off (otherwise every installed package would be flagged). Fill it from the WS01 inventory while the laptop is in its known-good state.",
+  "names": []
+}

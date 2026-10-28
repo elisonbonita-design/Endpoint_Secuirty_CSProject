@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "_about": "Every number used by the rule-based risk score (compliance/risk.py). Change values here, then raise \"version\": each stored score records the version it was computed with.",
+  "score_max": 100,
+  "severity": {
+    "max": 40,
+    "requirement": {"critical": 40, "high": 30, "medium": 20, "low": 10},
+    "cvss_multiplier": 4,
+    "default": 10
+  },
+  "exposure": {
+    "max": 25,
+    "defender_off": 15,
+    "firewall_off": 15,
+    "known_exploited": 25,
+    "unapproved_port": 10
+  },
+  "asset": {
+    "max": 20,
+    "handles_client_data": 12,
+    "role": {"agent": 0, "team_lead": 8, "it_admin": 8, "shared_kiosk": 4}
+  },
+  "time_open": {"max": 10, "points_per_day": 2},
+  "repeat": {"points": 5, "min_times_reopened": 1},
+  "bands": [
+    {"name": "Critical", "min": 80},
+    {"name": "High", "min": 60},
+    {"name": "Medium", "min": 40},
+    {"name": "Low", "min": 0}
+  ]
+}
