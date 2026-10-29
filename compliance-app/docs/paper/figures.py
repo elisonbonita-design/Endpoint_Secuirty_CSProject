@@ -176,22 +176,22 @@ def fig_lab():
     fig, ax = canvas(W, H)
     box(ax, 2.35, 4.05, 2.3, 0.52, "", ec=MUTED, fc=GREY_BG, dashed=True)
     ax.text(3.5, 4.42, "Internet (setup mode only)", ha="center", fontsize=8, fontweight="bold")
-    ax.text(3.5, 4.2, "Used only to download installers and updates", ha="center", fontsize=6.5, color=MUTED)
+    ax.text(3.5, 4.2, "Separate connection, used only to download installers", ha="center", fontsize=6.5, color=MUTED)
     line(ax, [3.5, 3.5], [4.05, 3.36], color=MUTED, dashed=True)
     ax.text(3.5, 3.78, "X", ha="center", va="center", fontsize=10, color=RED, fontweight="bold",
             bbox=dict(fc="white", ec="none", pad=0.5))
-    ax.text(3.62, 3.78, "WAN cable unplugged during testing and demo", va="center", fontsize=6.5, color=RED)
+    ax.text(3.62, 3.78, "No uplink from the lab switch during testing and demo", va="center", fontsize=6.5, color=RED)
     box(ax, 0.15, 0.55, 6.7, 3.15, "", ec=BLUE, fc="#f6f9fc", dashed=True, r=0.1)
     ax.text(0.3, 3.53, "Isolated lab network  ·  10.20.0.0/24", fontsize=7, color=BLUE, fontweight="bold", va="center")
     ax.text(6.7, 3.53, "no default gateway  ·  domain cxlab.internal", fontsize=7, color=BLUE, fontweight="bold",
             va="center", ha="right")
     box(ax, 2.2, 2.65, 2.6, 0.7, "", ec=INK)
-    ax.text(3.5, 3.17, "TP-Link Archer router", ha="center", fontsize=8, fontweight="bold")
-    ax.text(3.5, 2.97, "Used as a simple switch  ·  LAN IP 10.20.0.254", ha="center", fontsize=6.4, color=MUTED)
-    ax.text(3.5, 2.8, "DHCP, Wi-Fi, WPS, UPnP and remote management off", ha="center", fontsize=6.4, color=MUTED)
-    hosts = [(0.3, "Laptop 1  ·  DC01", "Windows Server 2022", "AD DS · DNS · Group Policy", "IP 10.20.0.10", "LAN 1"),
-             (2.55, "Laptop 2  ·  SEC01", "Ubuntu Server 24.04 LTS", "Wazuh server · Flask app · SQLite", "IP 10.20.0.20", "LAN 2"),
-             (4.8, "Laptop 3  ·  WS01", "Windows 11 Pro (monitored client)", "Wazuh agent · BitLocker collector", "IP 10.20.0.101", "LAN 3")]
+    ax.text(3.5, 3.17, "TP-Link LiteWave LS1008 switch", ha="center", fontsize=8, fontweight="bold")
+    ax.text(3.5, 2.97, "8-port 10/100 Mbps  ·  unmanaged  ·  no IP address", ha="center", fontsize=6.4, color=MUTED)
+    ax.text(3.5, 2.8, "One flat network, no VLANs  ·  unused ports left empty", ha="center", fontsize=6.4, color=MUTED)
+    hosts = [(0.3, "Laptop 1  ·  DC01", "Windows Server 2022", "AD DS · DNS · Group Policy", "IP 10.20.0.10", "Port 1"),
+             (2.55, "Laptop 2  ·  SEC01", "Ubuntu Server 24.04 LTS", "Wazuh server · Flask app · SQLite", "IP 10.20.0.20", "Port 2"),
+             (4.8, "Laptop 3  ·  WS01", "Windows 11 Pro (monitored client)", "Wazuh agent · BitLocker collector", "IP 10.20.0.101", "Port 3")]
     for x, t, os_, role, ip, lan in hosts:
         box(ax, x, 1.55, 1.9, 0.8, "", ec=INK)
         ax.text(x + 0.95, 2.18, t, ha="center", fontsize=7.8, fontweight="bold")
@@ -236,9 +236,9 @@ def fig_reference():
     line(ax, [3.42, 3.42], [3.14, 2.74]); ax.text(3.5, 2.89, "transit 10.10.255.0/30", fontsize=5.8, color=MUTED)
     dev(2.2, 2.28, 2.45, "CORE-SW1 · 3650 L3 switch", "Routes VLANs · ACLs · DHCP")
     line(ax, [3.42, 3.42], [2.28, 2.1]); line(ax, [1.15, 4.55], [2.1, 2.1])
-    ax.text(1.25, 2.14, "802.1Q trunks · native VLAN 99", fontsize=5.8, color=MUTED)
+    ax.text(1.25, 2.14, "802.1Q trunks · native VLAN 99 (unused)", fontsize=5.8, color=MUTED)
     line(ax, [1.15, 1.15], [2.1, 1.93]); line(ax, [4.55, 4.55], [2.1, 1.93])
-    dev(0.45, 1.47, 1.4, "ACC-SW1 · 2960", "Agent floor")
+    dev(0.45, 1.47, 1.4, "ACC-SW1 · 2960", "Agent floor · voice VLAN 30")
     dev(3.7, 1.47, 1.7, "ACC-SW2 · 2960", "Servers, IT, guest")
     line(ax, [1.15, 1.15], [1.47, 1.25])
     line(ax, [4.55, 4.55], [1.47, 1.35]); line(ax, [2.65, 6.25], [1.35, 1.35])
@@ -262,7 +262,7 @@ def fig_reference():
     line(ax, [1.15, 1.15], [1.25, 1.25])
     box(ax, 0.2, 0.08, 0.28, 0.14, "", ec=BLUE, fc=BLUE_BG, lw=1.3, r=0.04)
     ax.text(0.55, 0.15, "Device also used in the physical lab (Figure 3)", fontsize=6, va="center")
-    ax.text(6.85, 0.15, "VLAN 10 MGMT holds switch IPs; SSH allowed only from IT-ADMIN.", fontsize=6,
+    ax.text(6.85, 0.15, "VLAN 10 MGMT holds switch IPs; SSH only from IT-ADMIN. Unused ports: VLAN 999, shut.", fontsize=6,
             va="center", ha="right", color=MUTED)
     save(fig, "f04_reference")
 
