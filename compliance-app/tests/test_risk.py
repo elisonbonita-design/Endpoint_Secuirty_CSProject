@@ -171,7 +171,7 @@ class SeatBandTests(unittest.TestCase):
 class ConfigTests(unittest.TestCase):
     def test_shipped_config_is_valid(self):
         catalogue = load_requirements()
-        self.assertEqual((WEIGHTS["version"], catalogue["version"]), ("1.0", "1.3"))
+        self.assertEqual((WEIGHTS["version"], catalogue["version"]), ("1.0", "1.4"))
         self.assertEqual(catalogue["requirements"]["REQ-BL-01"]["severity"], "critical")
         self.assertEqual(catalogue["requirements"]["REQ-AV-01"]["exposure"], "defender_off")
         self.assertEqual(match_requirement(catalogue, "Capstone Windows supplementary checks v1.0", "99001"),

@@ -90,7 +90,7 @@ class StoreTests(unittest.TestCase):
     def test_full_lifecycle(self):
         [f] = self.sync("failed", T0)
         self.assertEqual((f["state"], f["status"], f["requirement_id"], f["severity"], f["catalogue_version"]),
-                         ("non_compliant", "open", "REQ-BL-01", "critical", "1.3"))
+                         ("non_compliant", "open", "REQ-BL-01", "critical", "1.4"))
         self.assertIn("recovery key kept in Active Directory", f["remediation"])  # requirement text wins
         [f] = self.sync("passed", T0 + timedelta(hours=1))
         self.assertEqual((f["state"], f["status"]), ("compliant", "cleared"))
@@ -140,7 +140,7 @@ class StoreTests(unittest.TestCase):
         self.store.sync("wazuh", [{"endpoint_id": "001", "endpoint_label": "WS01", "checks": [
             {"policy": CUSTOM, "id": "99001", "name": "BitLocker protection on", "status": "failed",
              "assessed_at": iso(T0)}]}], newer, T0 + timedelta(hours=1))
-        self.assertEqual(self.store.all("wazuh")[0]["catalogue_version"], "1.3")
+        self.assertEqual(self.store.all("wazuh")[0]["catalogue_version"], "1.4")
 
 
 class ScopeTests(unittest.TestCase):

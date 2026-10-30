@@ -27,7 +27,7 @@
         <option value="sample">Sample fleet</option>
         <option value="wazuh">Live Wazuh</option>
       </select>
-      <button type="button" id="fleet-refresh" class="btn btn-primary" title="Read the latest results from every source and re-check all findings">Scan now</button>
+      <button type="button" id="fleet-refresh" class="btn btn-primary" title="On live data, have the online agents assess again (1-2 minutes), then read the latest results from every source and re-check all findings">Scan now</button>
     </div>
     <div class="actions user-bar">
       <span id="user-name" class="muted"></span>
@@ -40,6 +40,8 @@
     <a href="#/floorplan" data-nav="floorplan">Floor plan</a>
     <a href="#/findings" data-nav="findings">Findings</a>
     <a href="#/assets" data-nav="assets">Assets</a>
+    <a href="#/software" data-nav="software">Software</a>
+    <a href="#/ports" data-nav="ports">Ports</a>
     <a href="#/report" data-nav="report">Single report</a>
     <a href="#/admin" data-nav="admin" id="nav-admin" hidden>Admin</a>
     <a href="/report" id="report-link" target="_blank" rel="noopener">Compliance report ↗</a>
@@ -379,6 +381,124 @@
           <div class="table-wrap">
             <table class="data-table" id="asset-saved">
               <thead><tr><th>Match by</th><th>Value</th><th>Department</th><th>Building</th><th>Floor</th><th>Room</th><th>Role</th><th>Client data</th><th>Updated</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-software" class="view" hidden>
+        <section class="card">
+          <div class="section-head">
+            <h2>Installed software</h2>
+            <div class="filters">
+              <label class="visually-hidden" for="sw-endpoint">Endpoint</label>
+              <select id="sw-endpoint"></select>
+            </div>
+          </div>
+          <p class="muted">Requirement REQ-SW-01: only approved software may be installed. Each program that is not on
+            the approved list becomes a finding, which clears when the program is removed or approved. The list of
+            installed programs comes from the Wazuh inventory and refreshes when Scan now restarts the agent.</p>
+          <p id="sw-rule" class="status"></p>
+          <div class="form-actions" id="sw-baseline-actions" hidden>
+            <button type="button" id="sw-baseline" class="btn btn-secondary">Approve everything installed on this PC</button>
+          </div>
+          <p class="empty" id="sw-installed-empty" hidden>No software inventory for this endpoint yet.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="sw-installed">
+              <thead><tr><th>Program</th><th>Status</th><th>Approved by entry</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Approved software list</h2></div>
+          <p class="muted">Names are compared without case. End a name with * to approve every program that starts
+            with that text, for example <code>Microsoft Visual C++*</code>. Every change is recorded below.</p>
+          <p class="empty" id="sw-approved-empty" hidden>The list is empty, so the rule is off.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="sw-approved">
+              <thead><tr><th>Program</th><th>Note</th><th>Added by</th><th>Added</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="sw-form" class="asset-form" hidden>
+            <label>Program name<input id="sw-name" required maxlength="200" autocomplete="off"></label>
+            <label>Approval note<input id="sw-note" maxlength="500" autocomplete="off" placeholder="Who approved it and why"></label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Approve program</button></div>
+          </form>
+          <p id="sw-message" class="status" role="status" aria-live="polite"></p>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Change history</h2></div>
+          <p class="empty" id="sw-history-empty" hidden>No changes yet.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="sw-history">
+              <thead><tr><th>When</th><th>Who</th><th>Change</th><th>Program</th><th>Note</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-ports" class="view" hidden>
+        <section class="card">
+          <div class="section-head">
+            <h2>Listening ports</h2>
+            <div class="filters">
+              <label class="visually-hidden" for="pt-endpoint">Endpoint</label>
+              <select id="pt-endpoint"></select>
+            </div>
+          </div>
+          <p class="muted">Requirement REQ-NP-01: only approved ports may be listening. The firewall decides which
+            connections get through; this rule shows which services are open at all, for example Remote Desktop
+            switched on behind a firewall exception. Only TCP ports that other machines can reach are checked. Ports
+            49152-65535 are picked at random by Windows, so there the program is approved instead of the number.</p>
+          <p id="pt-rule" class="status"></p>
+          <div class="form-actions" id="pt-baseline-actions" hidden>
+            <button type="button" id="pt-baseline" class="btn btn-secondary">Approve every listening port on this PC</button>
+          </div>
+          <p class="empty" id="pt-checks-empty" hidden>No port inventory for this endpoint yet.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="pt-checks">
+              <thead><tr><th>Port</th><th>Program</th><th>Status</th><th>Approved by entry</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <details class="muted" id="pt-skipped-box">
+            <summary id="pt-skipped-title">Not checked</summary>
+            <div class="table-wrap">
+              <table class="data-table" id="pt-skipped">
+                <thead><tr><th>Port</th><th>Program</th><th>Why not checked</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Approved ports list</h2></div>
+          <p class="empty" id="pt-approved-empty" hidden>The list is empty, so the rule is off.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="pt-approved">
+              <thead><tr><th>Entry</th><th>Type</th><th>Note</th><th>Added by</th><th>Added</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="pt-form" class="asset-form" hidden>
+            <label>Type<select id="pt-kind"><option value="port">TCP port number</option>
+              <option value="program">Program on dynamic ports</option></select></label>
+            <label>Port or program<input id="pt-value" required maxlength="100" autocomplete="off" placeholder="3389 or lsass.exe"></label>
+            <label>Approval note<input id="pt-note" maxlength="500" autocomplete="off" placeholder="Who approved it and why"></label>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Approve</button></div>
+          </form>
+          <p id="pt-message" class="status" role="status" aria-live="polite"></p>
+        </section>
+        <section class="card">
+          <div class="section-head"><h2>Change history</h2></div>
+          <p class="empty" id="pt-history-empty" hidden>No changes yet.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="pt-history">
+              <thead><tr><th>When</th><th>Who</th><th>Change</th><th>Entry</th><th>Note</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>

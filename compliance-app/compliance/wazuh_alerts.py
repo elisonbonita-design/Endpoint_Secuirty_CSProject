@@ -20,6 +20,7 @@ but no actual or expected value.
 
 import re
 from collections.abc import Mapping
+from datetime import timedelta, timezone
 
 ALERTS_INDEX = "wazuh-alerts-4.x-*"
 MONITORING_INDEX = "wazuh-monitoring-*"
@@ -51,14 +52,26 @@ def latest_checks_query(agent_id, size=MAX_CHECKS):
     }
 
 
-def agents_query(size=MAX_AGENTS):
-    """Newest ``wazuh-monitoring`` snapshot per agent id."""
-    return {
+MAX_CLOCK_SKEW = timedelta(minutes=5)
+
+
+def agents_query(size=MAX_AGENTS, as_of=None):
+    """Newest ``wazuh-monitoring`` snapshot per agent id.
+
+    With ``as_of``, snapshots dated more than ``MAX_CLOCK_SKEW`` after it are ignored: a server
+    that booted with a wrong clock writes "future" snapshots that would otherwise stay newest for
+    hours and hide the agent's real status.
+    """
+    query = {
         "size": size,
         "collapse": {"field": "id"},
         "sort": [{"timestamp": {"order": "desc"}}],
         "_source": ["id", "name", "status", "lastKeepAlive", "timestamp", "ip", "os.name"],
     }
+    if as_of is not None:
+        latest = (as_of + MAX_CLOCK_SKEW).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        query["query"] = {"range": {"timestamp": {"lte": latest}}}
+    return query
 
 
 def sca_activity_query(size=MAX_AGENTS):
@@ -72,6 +85,56 @@ def sca_activity_query(size=MAX_AGENTS):
                      "name": {"terms": {"field": "agent.name", "size": 1}}},
         }},
     }
+
+
+AGENT_STARTED_RULE = "503"  # "Wazuh agent started."
+
+
+def rescan_progress_query(agent_ids, since):
+    """Per agent, the newest "agent started" alert and SCA scan summary at or after ``since`` (ISO time).
+
+    Used after "Scan now" restarts agents. A summary alert only appears when a scan changed
+    the score, so an agent that restarted but sent no summary may simply have nothing new.
+    """
+    ids = sorted(set(agent_ids))
+    if not ids or not all(isinstance(i, str) and AGENT_ID_PATTERN.fullmatch(i) for i in ids):
+        raise ValueError("agent IDs must be 3-8 digits, e.g. '001'")
+    return {
+        "size": 0,
+        "query": {"bool": {
+            "filter": [{"terms": {"agent.id": ids}}, {"range": {"timestamp": {"gte": since}}}],
+            "should": [{"term": {"rule.id": AGENT_STARTED_RULE}}, {"term": {"data.sca.type": "summary"}}],
+            "minimum_should_match": 1,
+        }},
+        "aggs": {"agents": {
+            "terms": {"field": "agent.id", "size": len(ids)},
+            "aggs": {
+                "started": {"filter": {"term": {"rule.id": AGENT_STARTED_RULE}},
+                            "aggs": {"at": {"max": {"field": "timestamp"}}}},
+                "scanned": {"filter": {"term": {"data.sca.type": "summary"}},
+                            "aggs": {"at": {"max": {"field": "timestamp"}}}},
+            },
+        }},
+    }
+
+
+def rescan_progress_response(response):
+    """``{agent_id: {"started": ISO time or None, "scanned": ISO time or None}}``."""
+    try:
+        buckets = response["aggregations"]["agents"]["buckets"]
+    except (KeyError, TypeError) as e:
+        raise ValueError("unexpected Indexer aggregation response") from e
+    progress = {}
+    for bucket in buckets if isinstance(buckets, list) else []:
+        if not isinstance(bucket, Mapping) or not isinstance(bucket.get("key"), str):
+            continue
+        times = {}
+        for name in ("started", "scanned"):
+            part = bucket.get(name) if isinstance(bucket.get(name), Mapping) else {}
+            at = part.get("at") if isinstance(part.get("at"), Mapping) else {}
+            times[name] = _str_or_none(at.get("value_as_string"))
+        progress[bucket["key"]] = times
+    return progress
 
 
 def _hits(response):

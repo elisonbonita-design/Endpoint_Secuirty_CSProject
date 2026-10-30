@@ -96,6 +96,52 @@ CREATE TABLE bitlocker_reports (
 );
 CREATE INDEX bitlocker_reports_by_host ON bitlocker_reports (hostname, id);
 """,
+    3: """
+-- Approved software for REQ-SW-01 on live data, managed by administrators in the dashboard.
+-- A name ending in * matches by prefix. An empty list keeps the rule off.
+CREATE TABLE approved_software (
+    id        INTEGER PRIMARY KEY,
+    name      TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    note      TEXT,
+    added_by  TEXT NOT NULL,
+    added_at  TEXT NOT NULL
+);
+
+-- Who changed the list, when and why. Rows are never edited or deleted.
+CREATE TABLE approved_software_events (
+    id      INTEGER PRIMARY KEY,
+    at      TEXT NOT NULL,
+    actor   TEXT NOT NULL,
+    action  TEXT NOT NULL CHECK (action IN ('added', 'removed')),
+    name    TEXT NOT NULL,
+    note    TEXT
+);
+""",
+    4: """
+-- Approved listening ports for REQ-NP-01 on live data, managed by administrators in the dashboard.
+-- kind 'port': a fixed TCP port number (below 49152). kind 'program': a program allowed to listen
+-- on Windows' dynamic ports (49152-65535), whose numbers change at every restart.
+CREATE TABLE approved_ports (
+    id        INTEGER PRIMARY KEY,
+    kind      TEXT NOT NULL CHECK (kind IN ('port', 'program')),
+    value     TEXT NOT NULL COLLATE NOCASE,
+    note      TEXT,
+    added_by  TEXT NOT NULL,
+    added_at  TEXT NOT NULL,
+    UNIQUE (kind, value)
+);
+
+-- Who changed the list, when and why. Rows are never edited or deleted.
+CREATE TABLE approved_port_events (
+    id      INTEGER PRIMARY KEY,
+    at      TEXT NOT NULL,
+    actor   TEXT NOT NULL,
+    action  TEXT NOT NULL CHECK (action IN ('added', 'removed')),
+    kind    TEXT NOT NULL,
+    value   TEXT NOT NULL,
+    note    TEXT
+);
+""",
 }
 LATEST = max(MIGRATIONS)
 

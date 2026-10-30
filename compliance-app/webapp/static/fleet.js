@@ -8,7 +8,7 @@ const PC_STATUS = { compliant: "Compliant", noncompliant: "Noncompliant", unknow
 const CONNECTIVITY = { online: "Online", offline: "Offline", stale: "Stale", unknown: "No agent status" };
 const CHECK_STATUS = { passed: "Compliant", failed: "Noncompliant", unknown: "Unknown", not_applicable: "Not applicable" };
 const LOCATION_FIELDS = ["department", "building", "floor", "room"];
-const VIEWS = ["overview", "map", "floorplan", "pc", "findings", "assets", "report", "admin"];
+const VIEWS = ["overview", "map", "floorplan", "pc", "findings", "assets", "software", "ports", "report", "admin"];
 const SOURCE_LABELS = { sca: "Configuration (SCA)", event: "Security event", inventory: "Inventory",
   vulnerability: "Vulnerability", fim: "File integrity", bitlocker: "BitLocker" };
 const FINDING_STATUS = { open: "Open", in_review: "In review", fixed_pending: "Fixed, waiting for verification",
@@ -1182,6 +1182,241 @@ $("user-form").addEventListener("submit", (event) => {
   $("user-password").value = "";
 });
 
+// ---- Approved software (REQ-SW-01) ----
+
+const softwareState = { endpoint: null, installed: null };
+const isAdmin = () => fleetState.user && fleetState.user.role === "admin";
+
+function endpointName(key) {
+  const e = fleetState.fleet && fleetState.fleet.endpoints.find((x) => x.key === key);
+  return (e && e.hostname) || key;
+}
+
+function renderApprovedSoftware(list) {
+  const admin = isAdmin();
+  $("sw-approved-empty").hidden = list.entries.length > 0;
+  $("sw-approved").querySelector("tbody").replaceChildren(...list.entries.map((entry) => {
+    const actions = el("td", { class: "row-actions" });
+    if (admin) {
+      const remove = el("button", { type: "button", class: "btn btn-secondary btn-small", text: "Remove" });
+      remove.addEventListener("click", () => {
+        const note = prompt(`Remove "${entry.name}" from the approved list? Reason (optional):`);
+        if (note !== null) softwareRequest("DELETE", `/api/software/${entry.id}`, { note });
+      });
+      actions.append(remove);
+    }
+    return el("tr", {}, el("td", { text: entry.name }), el("td", { text: entry.note || "" }),
+      el("td", { text: entry.added_by }), el("td", {}, timeNode(entry.added_at)), actions);
+  }));
+  $("sw-history-empty").hidden = list.history.length > 0;
+  $("sw-history").querySelector("tbody").replaceChildren(...list.history.map((h) => el("tr", {},
+    el("td", {}, timeNode(h.at)), el("td", { text: h.actor }), el("td", { text: h.action === "added" ? "Approved" : "Removed" }),
+    el("td", { text: h.name }), el("td", { text: h.note || "" }))));
+}
+
+async function loadInstalled() {
+  const body = $("sw-installed").querySelector("tbody");
+  const id = softwareState.endpoint;
+  softwareState.installed = id
+    ? await fetchJson(`/api/software/installed?${sourceQuery()}&id=${encodeURIComponent(id)}`) : null;
+  const data = softwareState.installed;
+  const programs = data ? data.programs : [];
+  const editable = isAdmin() && data && !data.sample_list;
+  $("sw-installed-empty").hidden = programs.length > 0;
+  $("sw-form").hidden = !isAdmin();
+  const unapproved = programs.filter((p) => !p.approved).length;
+  $("sw-baseline-actions").hidden = !(editable && unapproved > 0);
+  if (!data) $("sw-rule").textContent = "";
+  else if (data.sample_list) $("sw-rule").textContent = "Sample data uses its own fixed approved list. Switch to Live Wazuh to manage approvals.";
+  else if (!data.rule_on) $("sw-rule").textContent = "The rule is off: the approved list is empty, so no software findings are raised. "
+    + "Approve the programs of a known-good PC to turn it on.";
+  else $("sw-rule").textContent = `${programs.length - unapproved} of ${programs.length} programs approved; `
+    + `${unapproved} not approved (each one is an open REQ-SW-01 finding).`;
+  body.replaceChildren(...programs.map((p) => {
+    const actions = el("td", { class: "row-actions" });
+    if (editable && !p.approved) {
+      const approve = el("button", { type: "button", class: "btn btn-secondary btn-small", text: "Approve" });
+      approve.addEventListener("click", () => softwareRequest("POST", "/api/software",
+        { name: p.name, note: `Approved from the installed programs of ${endpointName(id)}` }));
+      actions.append(approve);
+    }
+    return el("tr", {}, el("td", { text: p.name }),
+      el("td", {}, el("span", { class: `badge ${p.approved ? "badge-passed" : "badge-failed"}`,
+        text: p.approved ? "Approved" : "Not approved" })),
+      el("td", { text: p.matched_by || "" }), actions);
+  }));
+}
+
+// Change the list, then re-read the fleet so the findings follow at once (no agent restart needed).
+async function softwareRequest(method, url, body) {
+  $("sw-message").textContent = "";
+  try {
+    const list = await fetchJson(url, { method, headers: { ...APP_HEADER, "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    renderApprovedSoftware(list);
+    invalidateFleet();
+    await getFleet(true);
+    await loadInstalled();
+    const added = list.added ? ` ${list.added.length} program(s) approved.` : "";
+    $("sw-message").textContent = `Saved.${added} Findings updated.`;
+  } catch (err) {
+    $("sw-message").textContent = `Not saved: ${err.message}`;
+  }
+}
+
+async function showSoftware(endpointId) {
+  const ok = await withLoading("software", async () => {
+    const [fleet, list] = await Promise.all([getFleet(), fetchJson("/api/software")]);
+    const select = $("sw-endpoint");
+    select.replaceChildren(...fleet.endpoints.map((e) => el("option", { value: e.key, text: e.hostname || e.key })));
+    const keys = fleet.endpoints.map((e) => e.key);
+    const wanted = [endpointId, softwareState.endpoint].find((k) => k && keys.includes(k)) || keys[0] || null;
+    if (wanted) select.value = wanted;
+    softwareState.endpoint = wanted;
+    renderApprovedSoftware(list);
+    await loadInstalled();
+  });
+  $("view-software").hidden = !ok;
+}
+
+$("sw-endpoint").addEventListener("change", async () => {
+  softwareState.endpoint = $("sw-endpoint").value;
+  try { await loadInstalled(); } catch (err) { setFleetError(`Could not load software: ${err.message}`); }
+});
+$("sw-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  softwareRequest("POST", "/api/software", { name: $("sw-name").value, note: $("sw-note").value });
+  $("sw-name").value = "";
+  $("sw-note").value = "";
+});
+$("sw-baseline").addEventListener("click", () => {
+  const data = softwareState.installed;
+  const count = data ? data.programs.filter((p) => !p.approved).length : 0;
+  const name = endpointName(softwareState.endpoint);
+  if (confirm(`Approve all ${count} programs installed on ${name} that are not approved yet? `
+    + "Do this only while the PC is in a known-good state.")) {
+    softwareRequest("POST", `/api/software/approve-installed?${sourceQuery()}`,
+      { endpoint_id: softwareState.endpoint, note: `Known-good baseline from ${name}` });
+  }
+});
+
+// ---- Approved listening ports (REQ-NP-01) ----
+
+const portState = { endpoint: null, listening: null };
+const entryText = (kind, value) => (kind === "port" ? `${value}/tcp` : `${value} (dynamic ports)`);
+
+function renderApprovedPorts(list) {
+  $("pt-approved-empty").hidden = list.entries.length > 0;
+  $("pt-approved").querySelector("tbody").replaceChildren(...list.entries.map((entry) => {
+    const actions = el("td", { class: "row-actions" });
+    if (isAdmin()) {
+      const remove = el("button", { type: "button", class: "btn btn-secondary btn-small", text: "Remove" });
+      remove.addEventListener("click", () => {
+        const note = prompt(`Remove ${entryText(entry.kind, entry.value)} from the approved list? Reason (optional):`);
+        if (note !== null) portRequest("DELETE", `/api/ports/${entry.id}`, { note });
+      });
+      actions.append(remove);
+    }
+    return el("tr", {}, el("td", { text: entryText(entry.kind, entry.value) }),
+      el("td", { text: entry.kind === "port" ? "Port number" : "Program" }), el("td", { text: entry.note || "" }),
+      el("td", { text: entry.added_by }), el("td", {}, timeNode(entry.added_at)), actions);
+  }));
+  $("pt-history-empty").hidden = list.history.length > 0;
+  $("pt-history").querySelector("tbody").replaceChildren(...list.history.map((h) => el("tr", {},
+    el("td", {}, timeNode(h.at)), el("td", { text: h.actor }), el("td", { text: h.action === "added" ? "Approved" : "Removed" }),
+    el("td", { text: entryText(h.kind, h.value) }), el("td", { text: h.note || "" }))));
+}
+
+async function loadListening() {
+  const id = portState.endpoint;
+  portState.listening = id
+    ? await fetchJson(`/api/ports/listening?${sourceQuery()}&id=${encodeURIComponent(id)}`) : null;
+  const data = portState.listening;
+  const checks = data ? data.checks : [];
+  const editable = isAdmin() && data && !data.sample_list;
+  $("pt-checks-empty").hidden = checks.length > 0;
+  $("pt-form").hidden = !isAdmin();
+  const unapproved = checks.filter((c) => !c.approved).length;
+  $("pt-baseline-actions").hidden = !(editable && unapproved > 0);
+  if (!data) $("pt-rule").textContent = "";
+  else if (data.sample_list) $("pt-rule").textContent = "Sample data uses its own fixed approved ports. Switch to Live Wazuh to manage approvals.";
+  else if (!data.rule_on) $("pt-rule").textContent = "The rule is off: the approved list is empty, so no port findings are raised. "
+    + "Approve the ports of a known-good PC to turn it on.";
+  else $("pt-rule").textContent = `${checks.length - unapproved} of ${checks.length} checked ports approved; `
+    + `${unapproved} not approved (each one is an open REQ-NP-01 finding).`;
+  $("pt-checks").querySelector("tbody").replaceChildren(...checks.map((c) => {
+    const actions = el("td", { class: "row-actions" });
+    if (editable && !c.approved) {
+      const approve = el("button", { type: "button", class: "btn btn-secondary btn-small", text: "Approve" });
+      approve.addEventListener("click", () => portRequest("POST", "/api/ports",
+        { kind: c.kind, value: c.value, note: `Approved from the listening ports of ${endpointName(id)}` }));
+      actions.append(approve);
+    }
+    return el("tr", {}, el("td", { text: c.kind === "port" ? `${c.ports[0]}/tcp` : `${c.ports.join(", ")} (dynamic)` }),
+      el("td", { text: c.process || "" }),
+      el("td", {}, el("span", { class: `badge ${c.approved ? "badge-passed" : "badge-failed"}`,
+        text: c.approved ? "Approved" : "Not approved" })),
+      el("td", { text: c.approved ? entryText(c.kind, c.value) : "" }), actions);
+  }));
+  const skipped = data ? data.skipped : [];
+  $("pt-skipped-box").hidden = skipped.length === 0;
+  $("pt-skipped-title").textContent = `Not checked (${skipped.length}): UDP, or only this PC can connect`;
+  $("pt-skipped").querySelector("tbody").replaceChildren(...skipped.map((s) => el("tr", {},
+    el("td", { text: `${s.port}/${s.transport}` }), el("td", { text: s.processes.join(", ") }), el("td", { text: s.reason }))));
+}
+
+async function portRequest(method, url, body) {
+  $("pt-message").textContent = "";
+  try {
+    const list = await fetchJson(url, { method, headers: { ...APP_HEADER, "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    renderApprovedPorts(list);
+    invalidateFleet();
+    await getFleet(true);
+    await loadListening();
+    const added = list.added ? ` ${list.added.length} entr${list.added.length === 1 ? "y" : "ies"} approved.` : "";
+    $("pt-message").textContent = `Saved.${added} Findings updated.`;
+  } catch (err) {
+    $("pt-message").textContent = `Not saved: ${err.message}`;
+  }
+}
+
+async function showPorts(endpointId) {
+  const ok = await withLoading("ports", async () => {
+    const [fleet, list] = await Promise.all([getFleet(), fetchJson("/api/ports")]);
+    const select = $("pt-endpoint");
+    select.replaceChildren(...fleet.endpoints.map((e) => el("option", { value: e.key, text: e.hostname || e.key })));
+    const keys = fleet.endpoints.map((e) => e.key);
+    const wanted = [endpointId, portState.endpoint].find((k) => k && keys.includes(k)) || keys[0] || null;
+    if (wanted) select.value = wanted;
+    portState.endpoint = wanted;
+    renderApprovedPorts(list);
+    await loadListening();
+  });
+  $("view-ports").hidden = !ok;
+}
+
+$("pt-endpoint").addEventListener("change", async () => {
+  portState.endpoint = $("pt-endpoint").value;
+  try { await loadListening(); } catch (err) { setFleetError(`Could not load ports: ${err.message}`); }
+});
+$("pt-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  portRequest("POST", "/api/ports", { kind: $("pt-kind").value, value: $("pt-value").value, note: $("pt-note").value });
+  $("pt-value").value = "";
+  $("pt-note").value = "";
+});
+$("pt-baseline").addEventListener("click", () => {
+  const data = portState.listening;
+  const count = data ? data.checks.filter((c) => !c.approved).length : 0;
+  const name = endpointName(portState.endpoint);
+  if (confirm(`Approve all ${count} unapproved listening ports and programs on ${name}? `
+    + "Do this only while the PC is in a known-good state.")) {
+    portRequest("POST", `/api/ports/approve-listening?${sourceQuery()}`,
+      { endpoint_id: portState.endpoint, note: `Known-good baseline from ${name}` });
+  }
+});
+
 async function loadUser() {
   try {
     const me = await fetchJson("/api/me");
@@ -1218,6 +1453,8 @@ function route() {
   else if (name === "floorplan") showFloorplan();
   else if (name === "findings") showFindings();
   else if (name === "assets") showAssets();
+  else if (name === "software") showSoftware(param && decodeURIComponent(param));
+  else if (name === "ports") showPorts(param && decodeURIComponent(param));
   else if (name === "admin") showAdmin();
   else showOverview();
 }
@@ -1237,7 +1474,43 @@ function scanSummary(scan, warnings) {
   return parts.join(" · ");
 }
 
-// "Scan now": re-read every source (read-only), re-run the compliance check and verification, report changes.
+const RESCAN_POLL_MS = 5000;
+const RESCAN_TIMEOUT_MS = 180000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Live data: restart the online agents (they assess again at start) and wait until each has
+// rescanned. Returns a note for the summary line, or null when rescanning is not configured.
+async function rescanAgents(button) {
+  let request;
+  try {
+    request = await fetchJson(`/api/scan/request?${sourceQuery()}`, { method: "POST", headers: APP_HEADER });
+  } catch (err) {
+    if (/not configured/.test(err.message)) return null;
+    throw err;
+  }
+  const notes = Object.entries(request.failed).map(([id, why]) => `agent ${id} not restarted: ${why}`);
+  if (!request.agents.length) return notes.join(" · ") || "no agents to rescan";
+  const query = `agents=${request.agents.join(",")}&since=${encodeURIComponent(request.requested_at)}`;
+  const started = Date.now();
+  for (;;) {
+    const progress = await fetchJson(`/api/scan/progress?${query}`);
+    const states = Object.values(progress.agents);
+    const scanning = states.filter((a) => a.started && !a.done).length;
+    button.textContent = scanning ? `Agents scanning (${states.filter((a) => a.done).length}/${states.length})…`
+      : "Restarting agents…";
+    if (progress.done) break;
+    if (Date.now() - started > RESCAN_TIMEOUT_MS) {
+      notes.push("some agents did not finish within 3 minutes; showing the latest stored results");
+      break;
+    }
+    await sleep(RESCAN_POLL_MS);
+  }
+  notes.unshift(`${request.agents.length} agent(s) rescanned`);
+  return notes.join(" · ");
+}
+
+// "Scan now": on live data first make the agents assess again, then re-read every source,
+// re-run the compliance check and verification, and report what changed.
 async function scanNow() {
   const button = $("fleet-refresh");
   if (button.disabled) return;
@@ -1245,12 +1518,15 @@ async function scanNow() {
   button.textContent = "Scanning…";
   setFleetError("");
   $("scan-result").textContent = "";
-  invalidateFleet();
   try {
+    const note = fleetState.source === "wazuh" ? await rescanAgents(button) : null;
+    button.textContent = "Reading results…";
+    invalidateFleet();
     const body = await getFleet(true);
     route();
-    $("scan-result").textContent = body.scan ? scanSummary(body.scan, body.warnings || [])
+    const summary = body.scan ? scanSummary(body.scan, body.warnings || [])
       : `Scan finished ${formatTime(new Date().toISOString())}`;
+    $("scan-result").textContent = note ? `${summary} · ${note}` : summary;
   } catch (err) {
     setFleetError(`Scan failed: ${err.message}`);
   } finally {

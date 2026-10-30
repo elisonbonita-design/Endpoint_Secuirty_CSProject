@@ -100,7 +100,7 @@ def packages_query():
 
 
 def ports_query():
-    return _state_query(["source.port", "network.transport", "interface.state", "process.name"])
+    return _state_query(["source.ip", "source.port", "network.transport", "interface.state", "process.name"])
 
 
 def _hits(response):
@@ -145,8 +145,16 @@ def packages_response(response):
     return {agent: sorted(names) for agent, names in out.items()}
 
 
+LOOPBACK = ("127.", "::1")
+
+
 def ports_response(response):
-    """Listening TCP ports, and UDP ports (UDP has no listening state)."""
+    """Listening TCP ports, and UDP ports (UDP has no listening state), one entry per protocol and port.
+
+    ``addresses`` are the local addresses the port is bound to, ``local_only`` is True when every
+    one of them is a loopback address (only this PC can connect), and ``processes`` are the
+    programs holding it.
+    """
     out = {}
     for doc in _hits(response):
         agent, port = _agent(doc), _get(doc, "source.port")
@@ -155,6 +163,19 @@ def ports_response(response):
         state = (_get(doc, "interface.state") or "").lower()
         if not agent or not isinstance(port, int) or not (state == "listening" or transport.startswith("udp")):
             continue
-        out.setdefault(agent, {})[(transport, port)] = {"port": port, "transport": transport,
-                                                       "process": _get(doc, "process.name")}
-    return {agent: list(ports.values()) for agent, ports in out.items()}
+        entry = out.setdefault(agent, {}).setdefault((transport, port), {"addresses": set(), "processes": set()})
+        address, process = _get(doc, "source.ip"), _get(doc, "process.name")
+        if isinstance(address, str) and address:
+            entry["addresses"].add(address)
+        if isinstance(process, str) and process.strip():
+            entry["processes"].add(process.strip())
+    result = {}
+    for agent, ports in out.items():
+        result[agent] = []
+        for (transport, port), entry in ports.items():
+            addresses, processes = sorted(entry["addresses"]), sorted(entry["processes"])
+            result[agent].append({
+                "port": port, "transport": transport, "process": processes[0] if processes else None,
+                "processes": processes, "addresses": addresses,
+                "local_only": bool(addresses) and all(a.startswith(LOOPBACK) for a in addresses)})
+    return result

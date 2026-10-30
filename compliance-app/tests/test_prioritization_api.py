@@ -57,7 +57,7 @@ class RiskApiTests(unittest.TestCase):
 
     def test_risk_list_sorted_with_needs_data_separate(self):
         body = self.client().get("/api/risk?source=sample").get_json()
-        self.assertEqual((body["weights_version"], body["catalogue_version"]), ("1.0", "1.3"))
+        self.assertEqual((body["weights_version"], body["catalogue_version"]), ("1.0", "1.4"))
         scores = [(f["score"], f["opened_at"]) for f in body["findings"]]
         self.assertEqual(scores, sorted(scores, key=lambda s: (-s[0], s[1])))
         self.assertTrue(all(f["state"] == "non_compliant" for f in body["findings"]))

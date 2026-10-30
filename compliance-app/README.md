@@ -24,6 +24,22 @@ Sign-in is required. Admins manage accounts, assets, floor plans and exceptions;
 reviewers review findings, record simulated fixes and print reports. See
 [docs/sources.md](docs/sources.md) for the data sources, the workflow and the roles.
 
+### Scan now on live data
+
+On the Live Wazuh source, **Scan now** first restarts the online agents through the Wazuh
+server API. An agent runs its SCA policies and inventory when it starts. The button then
+waits for the new results, up to 3 minutes and usually about 1 minute, and reads every
+source again. Without the settings below, it only reads again.
+
+| Setting | Value |
+|---|---|
+| `WAZUH_API_URL` | `https://127.0.0.1:55000` |
+| `WAZUH_API_USERNAME` / `WAZUH_API_PASSWORD` | A Wazuh API user whose only policy is `agent:restart` on `agent:id:*` |
+| `WAZUH_API_CA_FILE` | The API certificate: `/var/ossec/api/configuration/ssl/server.crt` in a default install |
+| `WAZUH_API_TLS_SERVER_NAME` | `localhost` (the name in the default API certificate) |
+
+Like the Indexer login, these are environment variables only. Keep them out of the repository.
+
 ### Lab deployment (SEC01) and the BitLocker collector
 
 1. Copy `instance/app.env.example` to `instance/app.env` and set these values:

@@ -1,5 +1,5 @@
 {
   "version": "1.0",
-  "_about": "Approved listening ports baseline for the exposure rule. The app does not collect listening ports yet (no inventory source), so this rule cannot fire until that collector exists.",
+  "_about": "Starting approved TCP port numbers (below 49152), copied once into the app database the first time the list there is empty. After that, administrators manage the list on the dashboard Ports page (with a change history), where programs on Windows dynamic ports (49152-65535) can also be approved. While the list is empty the listening-ports rule is off.",
   "ports": []
 }

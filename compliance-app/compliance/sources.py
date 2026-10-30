@@ -233,9 +233,47 @@ def software_approved(name, approved):
     return any(lowered == a.lower() or (a.endswith("*") and lowered.startswith(a[:-1].lower())) for a in approved)
 
 
+DYNAMIC_PORTS = range(49152, 65536)  # Windows picks these at random; they are approved by program, not number
+
+
+def port_checks(ports, approved_ports, approved_programs):
+    """How REQ-NP-01 judges one endpoint's listening ports.
+
+    Only TCP ports that other machines can reach are checked: UDP has no listening state and
+    ports bound only to loopback are reachable from the PC itself. A fixed port (below 49152)
+    is approved by number; ports in Windows' dynamic range change at every restart, so they are
+    grouped and approved by the program holding them. Returns one dict per check:
+    ``key``, ``title``, ``kind`` ("port" or "program"), ``value``, ``ports``, ``approved``,
+    ``process``; plus one dict per skipped port with ``checked`` False and a ``reason``.
+    """
+    programs = {p.lower() for p in approved_programs}
+    checks, skipped, dynamic = [], [], {}
+    for p in sorted(ports, key=lambda x: ((x.get("transport") or "tcp"), x.get("port") or 0)):
+        port, transport = p.get("port"), (p.get("transport") or "tcp").lower()
+        procs = p.get("processes") or ([p["process"]] if p.get("process") else [])
+        if transport != "tcp" or p.get("local_only"):
+            skipped.append({"port": port, "transport": transport, "processes": procs, "checked": False,
+                            "reason": "UDP" if transport != "tcp" else "only this PC can connect"})
+            continue
+        if port in DYNAMIC_PORTS:
+            for proc in procs or ["unknown program"]:
+                dynamic.setdefault(proc, []).append(port)
+            continue
+        label = f" ({', '.join(procs)})" if procs else ""
+        checks.append({"key": f"port:tcp:{port}", "title": f"Unapproved listening port {port}/tcp{label}",
+                       "kind": "port", "value": str(port), "ports": [port], "process": ", ".join(procs) or None,
+                       "approved": port in approved_ports, "checked": True})
+    for proc, nums in sorted(dynamic.items(), key=lambda x: x[0].lower()):
+        nums = sorted(set(nums))
+        checks.append({"key": f"port:tcp:dyn:{proc.lower()}", "kind": "program", "value": proc, "ports": nums,
+                       "title": f"Unapproved program listening on dynamic ports: {proc} ({', '.join(map(str, nums))})",
+                       "process": proc, "approved": proc.lower() in programs, "checked": True})
+    return checks, skipped
+
+
 def inventory_results(endpoints, packages_by_agent, ports_by_agent, covered_packages, covered_ports, existing,
-                      approved_software, approved_ports, catalogue, now):
-    """Unapproved packages (only if an approved list exists) and listening ports not in the approved baseline."""
+                      approved_software, approved_ports, catalogue, now, approved_programs=()):
+    """Unapproved packages and listening ports, each rule only once its approved list has an entry."""
     out = []
     if approved_software:
         current = {}
@@ -246,15 +284,13 @@ def inventory_results(endpoints, packages_by_agent, ports_by_agent, covered_pack
                         "title": f"Unapproved software installed: {name}", "observed_at": _iso(now),
                         "requirement_id": "REQ-SW-01", "remediation": _req_remediation(catalogue, "REQ-SW-01")}
         out += _state_results(endpoints, current, covered_packages, existing, "inventory", "pkg:", now)
-    if approved_ports:
+    if approved_ports or approved_programs:
         current = {}
         for agent, ports in ports_by_agent.items():
-            for p in ports:
-                if p.get("port") and p["port"] not in approved_ports:
-                    proto = (p.get("transport") or "tcp").lower()
-                    proc = f" ({p['process']})" if p.get("process") else ""
-                    current.setdefault(agent, {})[f"port:{proto}:{p['port']}"] = {
-                        "title": f"Unapproved listening port {p['port']}/{proto}{proc}", "observed_at": _iso(now),
+            for check in port_checks(ports, approved_ports, approved_programs)[0]:
+                if not check["approved"]:
+                    current.setdefault(agent, {})[check["key"]] = {
+                        "title": check["title"], "observed_at": _iso(now),
                         "requirement_id": "REQ-NP-01", "remediation": _req_remediation(catalogue, "REQ-NP-01")}
         out += _state_results(endpoints, current, covered_ports, existing, "inventory", "port:", now)
     return out

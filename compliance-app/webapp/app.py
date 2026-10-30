@@ -25,7 +25,8 @@ from compliance.fleet import (build_endpoint, group_documents_by_agent, parse_ti
                               summarize_fleet)
 from compliance.wazuh_alerts import (AGENT_ID_PATTERN, ALERTS_INDEX, MAX_AGENTS, MAX_CHECKS, MONITORING_INDEX,
                                      agents_query, latest_checks_query, monitoring_response_to_agents,
-                                     sca_activity_query, sca_activity_response, search_response_to_documents)
+                                     rescan_progress_query, rescan_progress_response, sca_activity_query,
+                                     sca_activity_response, search_response_to_documents)
 
 from compliance.ai_explain import (AI_LABEL, explain_payload, explain_prompt, fallback_explanation,
                                    parse_explanation, parse_summary, summary_payload, summary_prompt)
@@ -39,9 +40,18 @@ from .auth import AuthError, UserStore, load_secret_key
 from .findings_db import FindingStore
 from .indexer import IndexerError, client_from_env
 from .prioritization import RiskService, load_risk_config
+from .ports_db import PortStore
+from .routes_ports import register_port_routes
+from .routes_software import register_software_routes
 from .routes_workflow import register_workflow_routes
+from .software_db import SoftwareStore
+from .wazuh_api import WazuhApiError
+from .wazuh_api import client_from_env as wazuh_api_from_env
 
 log = logging.getLogger(__name__)
+# After "Scan now" restarts an agent: an SCA summary alert marks a finished scan, but one is only
+# sent when the score changed, so a restarted agent with no summary is treated as done after this.
+RESCAN_SETTLE = timedelta(seconds=90)
 
 APP_DIR = Path(__file__).resolve().parent.parent
 SAMPLE_PATH = APP_DIR / "samples" / "sca_results_sample.json"
@@ -134,9 +144,9 @@ def _utcnow():
 def create_app(sample_path=SAMPLE_PATH, indexer_client=_FROM_ENV, ai_provider=_FROM_ENV,
                fleet_sample_path=FLEET_SAMPLE_PATH, asset_db_path=ASSET_DB_PATH, now=_utcnow,
                risk_config=_FROM_ENV, login_required=True, secret_key=None, collector_token=_FROM_ENV,
-               observations_sample_path=OBSERVATIONS_SAMPLE_PATH):
-    """``indexer_client`` and ``ai_provider`` default to ones built from environment variables;
-    either may be None (not configured / AI disabled). ``risk_config`` defaults to the files in
+               observations_sample_path=OBSERVATIONS_SAMPLE_PATH, wazuh_api=_FROM_ENV):
+    """``indexer_client``, ``ai_provider`` and ``wazuh_api`` default to ones built from environment
+    variables; any may be None (not configured / AI disabled / "Scan now" only re-reads). ``risk_config`` defaults to the files in
     config/ (see ``load_risk_config``). The database is created on first use; ``now`` returns
     the current UTC time (staleness and "time open" are judged against it).
 
@@ -147,11 +157,13 @@ def create_app(sample_path=SAMPLE_PATH, indexer_client=_FROM_ENV, ai_provider=_F
     No background thread is started here; ``python -m webapp`` starts it (see ``__main__``).
     """
     app = Flask(__name__)
-    asset_store, risk_store, user_store = [], [], []
+    asset_store, risk_store, user_store, software_store, port_store = [], [], [], [], []
     if indexer_client is _FROM_ENV:
         indexer_client = client_from_env()
     if ai_provider is _FROM_ENV:
         ai_provider = provider_from_env()
+    if wazuh_api is _FROM_ENV:
+        wazuh_api = wazuh_api_from_env()
     if collector_token is _FROM_ENV:
         collector_token = os.environ.get("COLLECTOR_TOKEN", "").strip() or None
     if collector_token is not None and len(collector_token) < 32:
@@ -337,8 +349,26 @@ def create_app(sample_path=SAMPLE_PATH, indexer_client=_FROM_ENV, ai_provider=_F
         if risk_config is None:
             return None
         if not risk_store:
-            risk_store.append(RiskService(FindingStore(asset_db_path), assets, risk_config, now))
+            risk_store.append(RiskService(FindingStore(asset_db_path), assets, risk_config, now,
+                                          approved_software=lambda: software().names(),
+                                          approved_ports=lambda: approved_ports().policy()))
         return risk_store[0]
+
+    def approved_ports():
+        """The managed approved-ports list, started from config/approved_ports.json the first time."""
+        if not port_store:
+            store = PortStore(asset_db_path)
+            store.seed((risk_config or {}).get("approved_ports", ()), now())
+            port_store.append(store)
+        return port_store[0]
+
+    def software():
+        """The managed approved-software list, started from config/approved_software.json the first time."""
+        if not software_store:
+            store = SoftwareStore(asset_db_path)
+            store.seed((risk_config or {}).get("approved_software", ()), now())
+            software_store.append(store)
+        return software_store[0]
 
     app.extensions["risk_service"] = risk_service
 
@@ -381,7 +411,7 @@ def create_app(sample_path=SAMPLE_PATH, indexer_client=_FROM_ENV, ai_provider=_F
         if indexer_client is None:
             raise ApiError("Wazuh Indexer access is not configured on the server.", 503)
         try:
-            agents = monitoring_response_to_agents(indexer_search(MONITORING_INDEX, agents_query()))
+            agents = monitoring_response_to_agents(indexer_search(MONITORING_INDEX, agents_query(as_of=now())))
             activity = sca_activity_response(indexer_search(ALERTS_INDEX, sca_activity_query()))
         except (TypeError, ValueError) as e:
             if isinstance(e, ApiError):
@@ -526,6 +556,53 @@ def create_app(sample_path=SAMPLE_PATH, indexer_client=_FROM_ENV, ai_provider=_F
         if match is None:
             raise ApiError(f"No endpoint {endpoint_id} in this data source.", 404)
         return jsonify({"source": meta, "endpoint": match, "warnings": warnings})
+
+    # ---- "Scan now" on live data: restart the online agents so they assess again ----
+
+    @app.post("/api/scan/request")
+    def scan_request():
+        require_app_request()
+        require_role("admin", "reviewer")
+        if request.args.get("source") != "wazuh":
+            raise ApiError("Agents can only be rescanned on the live Wazuh source.")
+        if wazuh_api is None:
+            raise ApiError("Rescanning agents is not configured on the server; Scan now re-reads stored "
+                           "results only.", 503)
+        # Every known agent is asked, not only those the monitoring snapshot calls online: that
+        # snapshot can be minutes old, and Wazuh itself reports the agents it cannot reach.
+        _, endpoints, _ = load_fleet()
+        requested_at = now()
+        try:
+            restarted, failed = wazuh_api.restart_agents([e["key"] for e in endpoints])
+        except WazuhApiError as e:
+            raise ApiError(str(e), 502) from e
+        log.info("Scan now: restart requested for %s by %s", ",".join(restarted) or "no agents",
+                 current_user()["username"])
+        return jsonify({"requested_at": requested_at.strftime("%Y-%m-%dT%H:%M:%SZ"), "agents": restarted,
+                        "failed": failed})
+
+    @app.get("/api/scan/progress")
+    def scan_progress():
+        agents = [a for a in request.args.get("agents", "").split(",") if a]
+        since = parse_time(request.args.get("since"))
+        if not agents or len(agents) > MAX_AGENTS or not all(AGENT_ID_PATTERN.fullmatch(a) for a in agents):
+            raise ApiError("The agent list is not valid.")
+        if since is None:
+            raise ApiError("The start time is not valid.")
+        if indexer_client is None:
+            raise ApiError("Wazuh Indexer access is not configured on the server.", 503)
+        try:
+            found = rescan_progress_response(indexer_search(
+                ALERTS_INDEX, rescan_progress_query(agents, since.strftime("%Y-%m-%dT%H:%M:%SZ"))))
+        except (TypeError, ValueError) as e:
+            raise ReportError(f"Unsupported data from the Wazuh Indexer: {e}") from e
+        current, out = now(), {}
+        for agent in agents:
+            times = found.get(agent, {"started": None, "scanned": None})
+            started = parse_time(times["started"])
+            done = bool(times["scanned"]) or (started is not None and current - started >= RESCAN_SETTLE)
+            out[agent] = dict(times, done=done)
+        return jsonify({"agents": out, "done": all(a["done"] for a in out.values())})
 
     @app.get("/api/fleet/findings")
     def fleet_findings():
@@ -734,5 +811,57 @@ def create_app(sample_path=SAMPLE_PATH, indexer_client=_FROM_ENV, ai_provider=_F
         "risk_service": require_risk, "load_fleet": load_fleet, "require_app_request": require_app_request,
         "require_role": require_role, "current_user": current_user, "users": users, "now": now,
         "findings": lambda: FindingStore(asset_db_path), "collector_token": collector_token, "error": ApiError,
+    })
+
+    def installed_programs(endpoint_id):
+        """(installed program names, approved names in use, True if those are the sample's own list)."""
+        if not ENDPOINT_ID_PATTERN.fullmatch(endpoint_id or ""):
+            raise ApiError("The endpoint ID is not valid.")
+        source = request.args.get("source", "sample")
+        if source not in FLEET_SOURCES:
+            raise ApiError("Unknown data source. Use 'sample' or 'wazuh'.")
+        if source == "sample":
+            obs = sample_observations([])
+            programs = obs.get("packages", {}).get("by_agent", {}).get(endpoint_id, [])
+            own = (obs.get("approved") or {}).get("software")
+            return programs, tuple(own or software().names()), bool(own)
+        if indexer_client is None:
+            raise ApiError("Wazuh Indexer access is not configured on the server.", 503)
+        try:
+            by_agent = wazuh_sources.packages_response(indexer_search(wazuh_sources.PACKAGES_INDEX,
+                                                                      wazuh_sources.packages_query()))
+        except (TypeError, ValueError) as e:
+            raise ReportError(f"Unsupported data from the Wazuh Indexer: {e}") from e
+        return by_agent.get(endpoint_id, []), software().names(), False
+
+    register_software_routes(app, {
+        "software": software, "installed_programs": installed_programs, "require_role": require_role,
+        "require_app_request": require_app_request, "current_user": current_user, "now": now, "error": ApiError,
+    })
+
+    def listening_ports(endpoint_id):
+        """(listening ports, (approved numbers, approved programs) in use, True if those are the sample's own list)."""
+        if not ENDPOINT_ID_PATTERN.fullmatch(endpoint_id or ""):
+            raise ApiError("The endpoint ID is not valid.")
+        source = request.args.get("source", "sample")
+        if source not in FLEET_SOURCES:
+            raise ApiError("Unknown data source. Use 'sample' or 'wazuh'.")
+        if source == "sample":
+            obs = sample_observations([])
+            found = obs.get("ports", {}).get("by_agent", {}).get(endpoint_id, [])
+            own = (obs.get("approved") or {}).get("ports")
+            return found, ((frozenset(own), ()) if own else approved_ports().policy()), bool(own)
+        if indexer_client is None:
+            raise ApiError("Wazuh Indexer access is not configured on the server.", 503)
+        try:
+            by_agent = wazuh_sources.ports_response(indexer_search(wazuh_sources.PORTS_INDEX,
+                                                                   wazuh_sources.ports_query()))
+        except (TypeError, ValueError) as e:
+            raise ReportError(f"Unsupported data from the Wazuh Indexer: {e}") from e
+        return by_agent.get(endpoint_id, []), approved_ports().policy(), False
+
+    register_port_routes(app, {
+        "ports": approved_ports, "listening_ports": listening_ports, "require_role": require_role,
+        "require_app_request": require_app_request, "now": now, "error": ApiError,
     })
     return app

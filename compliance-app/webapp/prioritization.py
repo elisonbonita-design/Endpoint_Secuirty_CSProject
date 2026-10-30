@@ -36,12 +36,17 @@ def location_text(location):
 
 
 class RiskService:
-    def __init__(self, store, assets, config, now):
-        """``assets``: callable returning the AssetStore; ``now``: callable returning aware UTC time."""
+    def __init__(self, store, assets, config, now, approved_software=None, approved_ports=None):
+        """``assets``: callable returning the AssetStore; ``now``: callable returning aware UTC time;
+        ``approved_software``: callable returning the approved program names, and ``approved_ports``:
+        callable returning (approved port numbers, programs approved on dynamic ports); both are read
+        at every sync and default to the lists in ``config``."""
         self.store = store
         self._assets = assets
         self.config = config
         self._now = now
+        self._approved_software = approved_software or (lambda: tuple(config.get("approved_software", ())))
+        self._approved_ports = approved_ports or (lambda: (frozenset(config.get("approved_ports", ())), ()))
         self._lock = threading.Lock()
         self._last = {}
         self.last_scan = {}  # data source -> counts of what the latest sync changed
@@ -50,6 +55,15 @@ class RiskService:
     @property
     def weights(self):
         return self.config["weights"]
+
+    def approved_software_for(self, sample_approved=None):
+        """The approved names a sync uses: the sample data's own list, else the managed list."""
+        return tuple((sample_approved or {}).get("software") or self._approved_software())
+
+    def approved_ports_for(self, sample_approved=None):
+        """(port numbers, programs) a sync uses: the sample data's own numbers, else the managed list."""
+        sample = (sample_approved or {}).get("ports")
+        return (frozenset(sample), ()) if sample else self._approved_ports()
 
     def sync(self, data_source, endpoints, observations=None):
         """Store the latest results of ``endpoints`` (fleet records with SCA checks) and of the other
@@ -81,10 +95,11 @@ class RiskService:
             ports = observations.get("ports", {"by_agent": {}, "covered": set()})
             # The sample data carries its own small baselines so the demo can show these rules.
             approved = observations.get("approved") or {}
+            software = self.approved_software_for(approved)
+            port_numbers, port_programs = self.approved_ports_for(approved)
             results += sources.inventory_results(
                 endpoints, packages["by_agent"], ports["by_agent"], packages["covered"], ports["covered"], existing,
-                tuple(approved.get("software") or self.config.get("approved_software", ())),
-                frozenset(approved.get("ports") or self.config["approved_ports"]), catalogue, now)
+                software, port_numbers, catalogue, now, approved_programs=port_programs)
             if "bitlocker" in observations:
                 results += sources.bitlocker_results(endpoints, observations["bitlocker"], catalogue, now,
                                                      observations.get("bitlocker_max_age_hours", 24))
@@ -92,8 +107,8 @@ class RiskService:
             self.store.apply(data_source, results, catalogue, now, tally=tally)
             self.last_scan[data_source] = tally
             scores = self._recompute(data_source)
-            software_rule = bool(approved.get("software") or self.config.get("approved_software"))
-            ports_rule = bool(approved.get("ports") or self.config["approved_ports"])
+            software_rule = bool(software)
+            ports_rule = bool(port_numbers or port_programs)
             self._requirement_view(data_source, endpoints, results, observations, software_rule, ports_rule)
             return scores
 
