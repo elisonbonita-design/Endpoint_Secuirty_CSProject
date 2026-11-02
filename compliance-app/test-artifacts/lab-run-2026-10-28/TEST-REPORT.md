@@ -97,6 +97,8 @@ First run against real Wazuh data. **Setup mode**: every laptop still had intern
 | D6 | Start a temporary test listener on WS01 (PowerShell, TCP 8080, firewall unchanged), then Scan now | PASS | #503 "Unapproved listening port 8080/tcp (powershell.exe)" created in 107 s |
 | D6r | Stop the listener, then Scan now | PASS | #503 open → cleared (state compliant) in 97 s |
 
+| SC1 | Install the add-on SCA policy `wazuh/sca/capstone_windows_extra.yml` on WS01. Each command was dry-run first; the file hash matched the repo; `<policies>` was added to the agent's `<sca>` block (backup: `ossec.conf.before-sca-custom`) | PASS | Both policies loaded and ran in 40 s. **REQ-PW-03** (password complexity, check 99004, the CIS 1.1.5 item Wazuh's CIS policy does not implement) is now tracked: **compliant** (`PasswordComplexity = 1`). REQ-PW-04, the Defender checks and Secure Boot are also compliant. **REQ-BL-01 is non-compliant**: system drive protection status 0. Requirements with no data: 9 → 2 |
+
 Defects found and fixed in this run:
 
 6. **A "future" monitoring snapshot hid WS01's real status.** SEC01 booted with its clock about 7½ hours fast, likely because a dual-boot Windows keeps the hardware clock in local time. Until NTP corrected it, the dashboard wrote one snapshot dated 16:45 UTC saying "disconnected". That snapshot stayed newest, so WS01 counted as offline, Scan now skipped it, and inventory findings were not read. **Fix:** snapshots dated more than 5 minutes ahead are ignored, and Scan now asks Wazuh to restart every agent and reports the ones it could not reach. **Still open:** SEC01's hardware clock. In lab mode (no NTP) it would stay wrong.
